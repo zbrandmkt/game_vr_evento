@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Presenca VR - Game Stand</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #0A0A0A;
+      color: #fff;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* ===== OVERLAY LAYER ===== */
+    #overlay-layer {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9999; pointer-events: none;
+    }
+    #overlay-layer > div { pointer-events: auto; }
+
+    /* ===== MAIN MENU ===== */
+    #main-menu {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, #1a0f00 0%, #0A0A0A 70%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10000;
+    }
+    #main-menu.hidden { display: none; }
+
+    .menu-logo {
+      width: 120px; height: 120px; margin-bottom: 10px;
+    }
+    .menu-logo svg { width: 100%; height: 100%; }
+
+    .menu-title {
+      font-size: 28px; font-weight: 800; color: #FF8B1A;
+      letter-spacing: 4px; text-transform: uppercase; margin-bottom: 5px;
+    }
+    .menu-subtitle {
+      font-size: 14px; color: #888; margin-bottom: 40px;
+    }
+
+    .menu-btn {
+      display: block; width: 280px; padding: 18px 24px; margin: 10px auto;
+      background: linear-gradient(135deg, #FF8B1A 0%, #F05100 100%);
+      border: none; border-radius: 12px; color: #fff;
+      font-size: 18px; font-weight: 700; cursor: pointer;
+      text-align: center; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .menu-btn:hover, .menu-btn:active {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(255, 139, 26, 0.5);
+    }
+    .menu-btn.secondary {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,139,26,0.4);
+    }
+
+    .menu-footer {
+      position: absolute; bottom: 20px; text-align: center;
+      font-size: 12px; color: #555;
+    }
+    .menu-footer span { color: #FF8B1A; }
+
+    /* ===== GAME SWITCH BUTTON ===== */
+    #game-switch-btn {
+      position: fixed; top: 10px; right: 10px; z-index: 10001;
+      background: rgba(255,139,26,0.9); border: none; border-radius: 8px;
+      color: #fff; padding: 8px 14px; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: none;
+    }
+    #back-menu-btn {
+      position: fixed; top: 10px; left: 10px; z-index: 10001;
+      background: rgba(255,255,255,0.15); border: none; border-radius: 8px;
+      color: #fff; padding: 8px 14px; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: none;
+    }
+
+    /* ===== INTRO OVERLAY ===== */
+    #intro-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.92); display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10002; text-align: center; padding: 20px;
+    }
+    #intro-overlay.active { display: flex; }
+    #intro-countdown {
+      font-size: 96px; font-weight: 900; color: #fff;
+      text-shadow: 0 0 40px rgba(255,139,26,0.8), 0 0 80px rgba(255,139,26,0.4);
+      min-height: 120px; line-height: 1;
+    }
+    /* Subtitle caption at bottom of intro */
+    #intro-text {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 540px;
+      font-size: 18px; color: #fff; font-weight: 500; line-height: 1.5;
+      background: rgba(0,0,0,0.72);
+      padding: 12px 22px; border-radius: 10px;
+      border: 1px solid rgba(255,139,26,0.2);
+      min-height: 52px;
+      transition: opacity 0.3s;
+      white-space: pre-line;
+    }
+
+    /* ===== HUD ===== */
+    #game-hud {
+      position: fixed; top: 0; left: 0; width: 100%;
+      z-index: 9998; display: none;
+      flex-direction: column; align-items: center;
+      pointer-events: none; padding-top: 18px;
+    }
+    #game-hud.active { display: flex; }
+
+    /* Timer - DSEG7 digital font, neon orange */
+    #hud-timer {
+      font-family: 'DSEG7 Classic', 'Courier New', monospace;
+      font-size: 52px; font-weight: 700;
+      color: #FF8B1A;
+      text-shadow:
+        0 0 6px #FF8B1A,
+        0 0 12px #FF8B1A,
+        0 0 25px rgba(255,139,26,0.7),
+        0 0 50px rgba(255,139,26,0.3);
+      letter-spacing: 4px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    /* Lives - below timer, no background */
+    #hud-center-info {
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    /* Score - bottom center, neon orange */
+    #hud-score {
+      display: none;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px; font-weight: 700;
+      color: #FF8B1A;
+      text-shadow:
+        0 0 8px #FF8B1A,
+        0 0 20px rgba(255,139,26,0.6),
+        0 0 40px rgba(255,139,26,0.3);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    #hud-score.active { display: block; }
+
+    .hud-lives { color: #FF8B1A; font-size: 24px; }
+    .hud-progress {
+      font-family: 'Poppins', sans-serif;
+      color: #FFB800; font-size: 16px; font-weight: 600;
+    }
+
+    /* ===== GAME 1 LABELS - hidden ===== */
+    #game1-labels { display: none !important; }
+
+    /* ===== TOUCH ZONES (Game 1) ===== */
+    #touch-zones {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; z-index: 9996;
+    }
+    #touch-zones.active { display: flex; }
+    .touch-zone {
+      flex: 1; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .touch-zone:active { opacity: 1; }
+    .touch-left:active { background: rgba(255,139,26,0.15); }
+    .touch-right:active { background: rgba(150,150,150,0.15); }
+
+    /* ===== TOUCH ZONE (Game 2 - tap to hit) ===== */
+    #touch-hit-zone {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; z-index: 9996;
+    }
+    #touch-hit-zone.active { display: block; }
+
+    /* ===== RESULT SCREEN ===== */
+    #result-screen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10003; text-align: center; padding: 20px; overflow-y: auto;
+    }
+    #result-screen.active { display: flex; }
+    .result-title { font-size: 28px; font-weight: 900; color: #FF8B1A; margin-bottom: 5px; }
+    .result-score { font-size: 48px; font-weight: 900; color: #fff; margin-bottom: 5px; }
+    .result-detail { font-size: 14px; color: #888; margin-bottom: 20px; }
+    .result-slogan { font-size: 13px; color: #FF8B1A; font-style: italic; margin-bottom: 20px; }
+
+    .result-form { width: 100%; max-width: 300px; margin-bottom: 20px; }
+    .result-form input {
+      width: 100%; padding: 12px 16px; margin: 5px 0;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,139,26,0.4);
+      border-radius: 8px; color: #fff; font-size: 16px; outline: none;
+    }
+    .result-form input::placeholder { color: #666; }
+    .result-form input:focus { border-color: #FF8B1A; }
+
+    .result-btn {
+      display: inline-block; padding: 12px 24px; margin: 5px;
+      background: linear-gradient(135deg, #FF8B1A 0%, #F05100 100%);
+      border: none; border-radius: 8px; color: #fff;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .result-btn.secondary {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* ===== RANKING SCREEN ===== */
+    #ranking-screen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.97); display: none;
+      flex-direction: column; align-items: center;
+      z-index: 10004; padding: 20px; overflow-y: auto;
+    }
+    #ranking-screen.active { display: flex; }
+    .ranking-title { font-size: 24px; font-weight: 900; color: #FF8B1A; margin: 15px 0; }
+    .ranking-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+    .ranking-tab {
+      padding: 8px 20px; border-radius: 8px; border: 1px solid #333;
+      background: transparent; color: #888; cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .ranking-tab.active { background: #FF8B1A; color: #fff; border-color: #FF8B1A; }
+
+    .ranking-table { width: 100%; max-width: 500px; }
+    .ranking-row {
+      display: flex; padding: 10px 12px; border-bottom: 1px solid #1a1a1a;
+      align-items: center; font-size: 13px;
+    }
+    .ranking-row.header { color: #888; font-weight: 700; border-bottom: 1px solid #333; }
+    .ranking-pos { width: 30px; color: #FF8B1A; font-weight: 700; }
+    .ranking-name { flex: 1; }
+    .ranking-score { width: 70px; text-align: right; color: #FF8B1A; font-weight: 700; }
+    .ranking-time { width: 50px; text-align: right; color: #888; }
+
+    .ranking-export {
+      margin-top: 15px; padding: 10px 20px;
+      background: rgba(255,255,255,0.1); border: 1px solid #333;
+      border-radius: 8px; color: #888; cursor: pointer; font-size: 12px;
+    }
+    .ranking-close {
+      margin-top: 10px; padding: 10px 24px;
+      background: #FF8B1A; border: none; border-radius: 8px;
+      color: #fff; cursor: pointer; font-size: 14px; font-weight: 700;
+    }
+
+    /* ===== FEEDBACK FLASH ===== */
+    #feedback-flash {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 9995; pointer-events: none; opacity: 0;
+      transition: opacity 0.15s;
+    }
+    #feedback-flash.correct { background: rgba(255,139,26,0.2); opacity: 1; }
+    #feedback-flash.wrong { background: rgba(255,50,50,0.3); opacity: 1; }
+
+    /* ===== WORD INDICATOR ===== */
+    #word-indicator {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 9997; pointer-events: none; display: none;
+      text-align: center;
+    }
+    #word-indicator.active { display: block; }
+    #word-text {
+      font-size: 26px; font-weight: 900; color: #fff;
+      text-shadow: 0 0 20px rgba(255,139,26,0.6), 0 2px 10px rgba(0,0,0,0.8);
+      display: inline-block;
+    }
+
+    /* ===== WORD FLY ANIMATIONS ===== */
+    @keyframes wordFlyLeft {
+      0%   { transform: translateX(0) scale(1); opacity: 1; }
+      100% { transform: translateX(-160px) scale(0.6); opacity: 0; }
+    }
+    @keyframes wordFlyRight {
+      0%   { transform: translateX(0) scale(1); opacity: 1; }
+      100% { transform: translateX(160px) scale(0.6); opacity: 0; }
+    }
+    @keyframes wordFadeIn {
+      0%   { transform: translateX(0) scale(0.6); opacity: 0; }
+      100% { transform: translateX(0) scale(1); opacity: 1; }
+    }
+    .word-fly-left  { animation: wordFlyLeft  0.3s cubic-bezier(0.4,0,1,1) forwards; }
+    .word-fly-right { animation: wordFlyRight 0.3s cubic-bezier(0.4,0,1,1) forwards; }
+    .word-fade-in   { animation: wordFadeIn   0.25s ease-out forwards; }
+    #word-hint {
+      font-size: 11px; color: #666; margin-top: 8px;
+    }
+    #word-side-indicator {
+      position: fixed; top: 45%; z-index: 9997; pointer-events: none;
+      font-size: 40px; display: none; transition: opacity 0.2s;
+    }
+
+    /* ===== GAME 2 HIT FEEDBACK ===== */
+    #hit-feedback {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 9997; pointer-events: none; display: none;
+      font-size: 48px; font-weight: 900; color: #FFB800;
+      text-shadow: 0 0 30px rgba(255,184,0,0.8);
+    }
+
+    /* Hide A-Frame UI */
+    .a-enter-vr { display: none !important; }
+
+    /* ===== VR ENTER BUTTON ===== */
+    #vr-enter-btn {
+      position: fixed; bottom: 15px; right: 15px; z-index: 10001;
+      background: linear-gradient(135deg, #FF8B1A, #F05100);
+      border: none; border-radius: 50%; width: 50px; height: 50px;
+      display: none; align-items: center; justify-content: center;
+      cursor: pointer; color: #fff; font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== OVERLAY LAYER ===== -->
+<div id="overlay-layer">
+
+  <!-- MAIN MENU -->
+  <div id="main-menu">
+    <img class="menu-logo" src="assets/logo-pb-deitada.png" alt="Presenca" style="width:220px;height:auto;margin-bottom:15px;">
+    <div class="menu-title" style="display:none;">Presenca</div>
+    <div class="menu-subtitle">Leve sua operacao para outro nivel</div>
+
+    <button class="menu-btn" onclick="startGame('mundo')">Mundo Presenca</button>
+    <button class="menu-btn" onclick="startGame('clt')">CLT e Ouro</button>
+    <button class="menu-btn secondary" onclick="showRanking()">Ranking</button>
+
+    <div class="menu-footer">
+      Workshop Corban360 &mdash; <span>16 e 17 de Abril, 2026</span><br>
+      Sao Paulo Expo
+    </div>
+  </div>
+
+  <!-- GAME SWITCH / BACK BUTTONS -->
+  <button id="game-switch-btn" onclick="switchGame()">Trocar Jogo</button>
+  <button id="back-menu-btn" onclick="backToMenu()">Menu</button>
+
+  <!-- INTRO OVERLAY -->
+  <div id="intro-overlay">
+    <div id="intro-countdown"></div>
+    <div id="intro-text"></div>
+  </div>
+
+  <!-- INTRO AUDIO -->
+  <audio id="intro-audio" src="assets/intro_mundo.mp3" preload="auto"></audio>
+
+  <!-- GAME HUD -->
+  <div id="game-hud">
+    <div id="hud-timer">01:00</div>
+    <div id="hud-center-info"></div>
+  </div>
+  <div id="hud-score">0 pts</div>
+
+  <!-- GAME 1 SIDE LABELS -->
+  <div id="game1-labels">
+    <div class="label-side label-left">PRESENCA<br>Moderno</div>
+    <div class="label-side label-right">ANTIGO<br>Ultrapassado</div>
+  </div>
+
+  <!-- WORD INDICATOR (Game 1) -->
+  <div id="word-indicator">
+    <div id="word-text"></div>
+    <div id="word-hint">Incline a cabeca para esquerda ou direita</div>
+  </div>
+
+  <!-- TOUCH ZONES (Game 1 fallback) -->
+  <div id="touch-zones">
+    <div class="touch-zone touch-left" ontouchstart="sortWord('left')" onclick="sortWord('left')"></div>
+    <div class="touch-zone touch-right" ontouchstart="sortWord('right')" onclick="sortWord('right')"></div>
+  </div>
+
+  <!-- TOUCH HIT ZONE (Game 2 fallback) -->
+  <div id="touch-hit-zone" ontouchstart="registerHit()" onclick="registerHit()"></div>
+
+  <!-- HIT FEEDBACK (Game 2) -->
+  <div id="hit-feedback">CRACK!</div>
+
+  <!-- FEEDBACK FLASH -->
+  <div id="feedback-flash"></div>
+
+  <!-- RESULT SCREEN -->
+  <div id="result-screen">
+    <div class="result-title" id="result-title">Fim de Jogo!</div>
+    <div class="result-score" id="result-score-value">0</div>
+    <div class="result-detail" id="result-detail"></div>
+    <div class="result-slogan">Leve sua operacao para outro nivel</div>
+    <div class="result-form">
+      <input type="text" id="player-name" placeholder="Seu nome" maxlength="30">
+      <input type="tel" id="player-phone" placeholder="Seu telefone" maxlength="15">
+    </div>
+    <div>
+      <button class="result-btn" onclick="saveAndShowRanking()">Salvar & Ver Ranking</button>
+    </div>
+    <div style="margin-top:10px">
+      <button class="result-btn secondary" onclick="playAgain()">Jogar Novamente</button>
+      <button class="result-btn secondary" onclick="switchGame()">Trocar Jogo</button>
+    </div>
+  </div>
+
+  <!-- RANKING SCREEN -->
+  <div id="ranking-screen">
+    <img src="assets/logo-pb-deitada.png" alt="Presenca" style="width:120px;height:auto;">
+    <div class="ranking-title">Ranking</div>
+    <div class="ranking-tabs">
+      <button class="ranking-tab active" onclick="showRankingTab('mundo')">Mundo Presenca</button>
+      <button class="ranking-tab" onclick="showRankingTab('clt')">CLT e Ouro</button>
+    </div>
+    <div class="ranking-table" id="ranking-table">
+      <div class="ranking-row header">
+        <div class="ranking-pos">#</div>
+        <div class="ranking-name">Nome</div>
+        <div class="ranking-score">Pontos</div>
+        <div class="ranking-time">Tempo</div>
+      </div>
+    </div>
+    <button class="ranking-export" onclick="exportCSV()">Exportar CSV</button>
+    <button class="ranking-close" onclick="closeRanking()">Fechar</button>
+  </div>
+
+  <!-- VR Button -->
+  <button id="vr-enter-btn" onclick="enterVR()">VR</button>
+</div>
+
+<!-- ===== A-FRAME SCENE ===== -->
+<a-scene
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: true"
+  renderer="antialias: false; alpha: false"
+  fog="type: exponential; color: #0A0A0A; density: 0"
+  embedded
+  style="position:fixed;top:0;left:0;width:100%;height:100%;">
+
+  <!-- ===== ASSETS ===== -->
+  <a-assets>
+    <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
+    <img id="logo-presenca" src="assets/logo-pb-deitada.png" crossorigin="anonymous">
+  </a-assets>
+
+  <!-- ===== SKYBOX (global, swapped per game) ===== -->
+  <a-sky id="game-sky" src="#skybox-office" visible="false" material="shader: flat; src: #skybox-office; fog: false" rotation="0 90 0"></a-sky>
+
+  <!-- ===== CAMERA RIG ===== -->
+  <a-entity id="camera-rig" position="0 0 0">
+    <a-camera
+      id="main-camera"
+      position="0 1.6 0"
+      look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
+      wasd-controls="enabled: false">
+    </a-camera>
+  </a-entity>
+
+  <!-- ===== SHARED ENVIRONMENT (Stars) ===== -->
+  <a-entity id="shared-env">
+    <a-entity id="star-field" star-field></a-entity>
+  </a-entity>
+
+  <!-- ===== GAME 1 WORLD: Mundo Presenca ===== -->
+  <a-entity id="game1-world" visible="false">
+    <!-- Ambient light for skybox visibility -->
+    <a-light type="ambient" color="#fff" intensity="0.8"></a-light>
+  </a-entity>
+
+  <!-- ===== GAME 2 WORLD: CLT e Ouro ===== -->
+  <a-entity id="game2-world" visible="false">
+    <!-- Cave floor -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" color="#0d0800" roughness="1"></a-plane>
+
+    <!-- Cave walls -->
+    <a-box position="0 4 -6" width="14" height="8" depth="0.3" color="#1a1200" roughness="1"></a-box>
+    <a-box position="-7 4 -3" width="0.3" height="8" depth="6" color="#1a1200" roughness="1"></a-box>
+    <a-box position="7 4 -3" width="0.3" height="8" depth="6" color="#1a1200" roughness="1"></a-box>
+    <!-- Cave ceiling -->
+    <a-plane position="0 6 -3" rotation="90 0 0" width="14" height="6" color="#0d0800" roughness="1"></a-plane>
+
+    <!-- Magma glow from below -->
+    <a-light type="point" color="#FF6600" intensity="0.5" position="0 0.1 -3" distance="10"></a-light>
+    <a-light type="point" color="#FF4400" intensity="0.3" position="-3 0.1 -4" distance="8"></a-light>
+    <a-light type="point" color="#FF4400" intensity="0.3" position="3 0.1 -2" distance="8"></a-light>
+
+    <!-- Presenca logo on wall -->
+    <a-text value="PRESENCA" position="0 5.2 -5.8" align="center" color="#FF8B1A" width="6" font="mozillavr" opacity="0.4"></a-text>
+
+    <!-- Hexagonal grid wireframe background -->
+    <a-entity id="hex-grid" position="0 3 -5.5">
+      <a-ring position="-2 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
+      <a-ring position="-1 0 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
+      <a-ring position="0 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
+      <a-ring position="1 0 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
+      <a-ring position="2 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
+      <a-ring position="-1.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
+      <a-ring position="0.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
+      <a-ring position="1.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
+    </a-entity>
+
+    <!-- Rock container -->
+    <a-entity id="rock-container" position="0 1.2 -3">
+    </a-entity>
+
+    <!-- CLT Worker silhouette (behind rock) -->
+    <a-entity id="clt-silhouette" position="0 1.2 -3.1" visible="false">
+      <!-- Head -->
+      <a-sphere position="0 0.8 0" radius="0.2" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.4"></a-sphere>
+      <!-- Body -->
+      <a-box position="0 0.2 0" width="0.5" height="0.8" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
+      <!-- Arms -->
+      <a-box position="-0.4 0.3 0" width="0.3" height="0.15" depth="0.12" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
+      <a-box position="0.4 0.3 0" width="0.3" height="0.15" depth="0.12" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
+      <!-- Legs -->
+      <a-box position="-0.12 -0.4 0" width="0.18" height="0.5" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
+      <a-box position="0.12 -0.4 0" width="0.18" height="0.5" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
+      <!-- CLT text -->
+      <a-text value="CLT" position="0 0.2 0.1" align="center" color="#0A0A0A" width="2" font="mozillavr"></a-text>
+    </a-entity>
+
+    <!-- Ambient -->
+    <a-light type="ambient" color="#331800" intensity="0.4"></a-light>
+  </a-entity>
+
+  <!-- Global ambient -->
+  <a-light type="ambient" color="#222" intensity="0.3"></a-light>
+</a-scene>
+
+<script>
+// ===================================================================
+// PRESENCA VR GAME - COMPLETE GAME LOGIC
+// ===================================================================
+
+// ===== STAR FIELD COMPONENT =====
+AFRAME.registerComponent('star-field', {
+  init: function() {
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    for (let i = 0; i < 400; i++) {
+      vertices.push(
+        (Math.random() - 0.5) * 40,
+        Math.random() * 15 + 2,
+        (Math.random() - 0.5) * 40
+      );
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, sizeAttenuation: true });
+    const stars = new THREE.Points(geometry, material);
+    this.el.setObject3D('stars', stars);
+  }
+});
+
+// ===== GAME DATA =====
+const WORDS = [
+  // Presenca words (side: "left")
+  { text: "Inovacao", side: "left", difficulty: 1 },
+  { text: "Tecnologia", side: "left", difficulty: 1 },
+  { text: "Digital", side: "left", difficulty: 1 },
+  { text: "Autonomia", side: "left", difficulty: 1 },
+  { text: "Agilidade", side: "left", difficulty: 1 },
+  { text: "Escalabilidade", side: "left", difficulty: 2 },
+  { text: "White Label", side: "left", difficulty: 2 },
+  { text: "Automacao", side: "left", difficulty: 2 },
+  { text: "Fintech", side: "left", difficulty: 2 },
+  { text: "Autocontratacao", side: "left", difficulty: 2 },
+  { text: "Plataforma", side: "left", difficulty: 2 },
+  { text: "Parceria", side: "left", difficulty: 2 },
+  { text: "IA Integrada", side: "left", difficulty: 3 },
+  { text: "Credito CLT", side: "left", difficulty: 3 },
+  { text: "FGTS Pay", side: "left", difficulty: 3 },
+  { text: "Alta Margem", side: "left", difficulty: 3 },
+  { text: "Funding Estruturado", side: "left", difficulty: 3 },
+  // Old/wrong words (side: "right")
+  { text: "Burocracia", side: "right", difficulty: 1 },
+  { text: "Papel", side: "right", difficulty: 1 },
+  { text: "Demora", side: "right", difficulty: 1 },
+  { text: "Manual", side: "right", difficulty: 1 },
+  { text: "Desatualizado", side: "right", difficulty: 1 },
+  { text: "Fila", side: "right", difficulty: 2 },
+  { text: "Telefone Fixo", side: "right", difficulty: 2 },
+  { text: "Fax", side: "right", difficulty: 2 },
+  { text: "Carimbo", side: "right", difficulty: 2 },
+  { text: "Analogico", side: "right", difficulty: 2 },
+  { text: "Lentidao", side: "right", difficulty: 2 },
+  { text: "Processo Fisico", side: "right", difficulty: 3 },
+  { text: "Retrabalho", side: "right", difficulty: 3 },
+  { text: "Planilha Excel", side: "right", difficulty: 3 },
+];
+
+const DIFFICULTY_POINTS = { 1: 100, 2: 200, 3: 300 };
+
+// ===== GAME STATE =====
+let currentGame = null; // 'mundo' or 'clt'
+let gameActive = false;
+let gameTimer = null;
+let timeRemaining = 60;
+let score = 0;
+let lives = 3;
+let currentWordIndex = 0;
+let shuffledWords = [];
+let sortingCooldown = false;
+
+// Game 2 state
+let rockFragments = [];
+let totalFragments = 25;
+let destroyedFragments = 0;
+let nodState = 'rest'; // rest, winding, cooldown
+let lastPitch = 0;
+let nodCooldownTimer = null;
+let completionTime = null;
+
+// Last result for saving
+let lastResult = { game: null, score: 0, time: 0 };
+
+// ===== DOM REFS =====
+const $ = id => document.getElementById(id);
+const mainMenu = $('main-menu');
+const introOverlay = $('intro-overlay');
+const introText = $('intro-text');
+const introCountdown = $('intro-countdown');
+const gameHud = $('game-hud');
+const hudScore = $('hud-score');
+const hudTimer = $('hud-timer');
+const hudCenter = $('hud-center-info');
+const game1Labels = $('game1-labels');
+const wordIndicator = $('word-indicator');
+const wordText = $('word-text');
+const wordHint = $('word-hint');
+const touchZones = $('touch-zones');
+const touchHitZone = $('touch-hit-zone');
+const feedbackFlash = $('feedback-flash');
+const hitFeedback = $('hit-feedback');
+const resultScreen = $('result-screen');
+const rankingScreen = $('ranking-screen');
+const gameSwitchBtn = $('game-switch-btn');
+const backMenuBtn = $('back-menu-btn');
+const vrEnterBtn = $('vr-enter-btn');
+
+const game1World = $('game1-world');
+const game2World = $('game2-world');
+
+// ===== MENU FUNCTIONS =====
+function startGame(type) {
+  // Request iOS gyroscope permission FIRST (must be from user gesture)
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === 'granted') {
+          // Re-enable look-controls after permission granted
+          const cam = document.getElementById('main-camera');
+          cam.setAttribute('look-controls', 'pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true');
+        }
+      })
+      .catch(err => console.warn('Gyro permission error:', err))
+      .finally(() => {
+        // Always proceed to game regardless of permission result
+        _doStartGame(type);
+      });
+  } else {
+    // Android or desktop - no permission needed
+    _doStartGame(type);
+  }
+}
+
+function _doStartGame(type) {
+  currentGame = type;
+  mainMenu.classList.add('hidden');
+  gameSwitchBtn.style.display = 'block';
+  backMenuBtn.style.display = 'block';
+  vrEnterBtn.style.display = 'flex';
+
+  showIntro(type);
+}
+
+function switchGame() {
+  stopGame();
+  hideAllScreens();
+  currentGame = currentGame === 'mundo' ? 'clt' : 'mundo';
+  showIntro(currentGame);
+}
+
+function backToMenu() {
+  stopGame();
+  hideAllScreens();
+  mainMenu.classList.remove('hidden');
+  gameSwitchBtn.style.display = 'none';
+  backMenuBtn.style.display = 'none';
+  vrEnterBtn.style.display = 'none';
+  game1World.setAttribute('visible', false);
+  game2World.setAttribute('visible', false);
+  document.getElementById('game-sky').setAttribute('visible', false);
+  document.getElementById('shared-env').setAttribute('visible', true);
+}
+
+function hideAllScreens() {
+  introOverlay.classList.remove('active');
+  gameHud.classList.remove('active');
+  hudScore.classList.remove('active');
+  game1Labels.classList.remove('active');
+  wordIndicator.classList.remove('active');
+  touchZones.classList.remove('active');
+  touchHitZone.classList.remove('active');
+  resultScreen.classList.remove('active');
+  rankingScreen.classList.remove('active');
+}
+
+// ===== INTRO SEQUENCE =====
+
+// Subtitle segments for Mundo Presença audio (22s total)
+const MUNDO_SUBTITLES = [
+  { t: 0.0,  sub: 'Bem-vindo ao Mundo Presença...',                              count: '' },
+  { t: 2.2,  sub: 'Onde você se conecta com a inovação financeira!',             count: '' },
+  { t: 5.0,  sub: 'Vamos jogar?',                                                count: '' },
+  { t: 6.2,  sub: 'Coloque as palavras que representam a Presença\npara o lado correto,', count: '' },
+  { t: 10.0, sub: 'é só inclinar a sua cabeça em direção ao seu ombro,',         count: '' },
+  { t: 13.5, sub: 'faça isso com o maior número de palavras possíveis\nno menor tempo,', count: '' },
+  { t: 17.5, sub: 'começando em...',                                             count: '' },
+  { t: 19.2, sub: '',                                                            count: '3' },
+  { t: 20.0, sub: '',                                                            count: '2' },
+  { t: 20.8, sub: '',                                                            count: '1' },
+];
+
+function showIntro(type) {
+  hideAllScreens();
+  introOverlay.classList.add('active');
+  introText.textContent = '';
+  introCountdown.textContent = '';
+
+  if (type === 'mundo') {
+    showMundoIntroWithAudio();
+  } else {
+    introText.textContent = 'CLT é Ouro.\nO trabalhador CLT é o novo ouro\ndo mercado de crédito.\nLiberte esse potencial!';
+    setTimeout(() => {
+      let count = 3;
+      introCountdown.textContent = count;
+      const countInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          introCountdown.textContent = count;
+        } else {
+          clearInterval(countInterval);
+          introOverlay.classList.remove('active');
+          beginGame(type);
+        }
+      }, 1000);
+    }, 2500);
+  }
+}
+
+function showMundoIntroWithAudio() {
+  const audio = $('intro-audio');
+  audio.currentTime = 0;
+
+  function onTimeUpdate() {
+    const t = audio.currentTime;
+    let seg = MUNDO_SUBTITLES[0];
+    for (let i = 0; i < MUNDO_SUBTITLES.length; i++) {
+      if (t >= MUNDO_SUBTITLES[i].t) seg = MUNDO_SUBTITLES[i];
+    }
+    introText.textContent = seg.sub;
+    introCountdown.textContent = seg.count;
+  }
+
+  function onEnded() {
+    audio.removeEventListener('timeupdate', onTimeUpdate);
+    audio.removeEventListener('ended', onEnded);
+    introOverlay.classList.remove('active');
+    beginGame('mundo');
+  }
+
+  audio.addEventListener('timeupdate', onTimeUpdate);
+  audio.addEventListener('ended', onEnded);
+
+  audio.play().catch(() => {
+    // Fallback sem áudio: exibe texto e faz countdown normal
+    audio.removeEventListener('timeupdate', onTimeUpdate);
+    audio.removeEventListener('ended', onEnded);
+    introText.textContent = 'Bem-vindo ao Mundo Presença!\nSepare o futuro do passado.';
+    setTimeout(() => {
+      let count = 3;
+      introCountdown.textContent = count;
+      const iv = setInterval(() => {
+        count--;
+        if (count > 0) { introCountdown.textContent = count; }
+        else { clearInterval(iv); introOverlay.classList.remove('active'); beginGame('mundo'); }
+      }, 1000);
+    }, 2000);
+  });
+}
+
+// ===== BEGIN GAME =====
+function beginGame(type) {
+  gameActive = true;
+  score = 0;
+  timeRemaining = 60;
+  lives = 3;
+
+  // Show HUD
+  gameHud.classList.add('active');
+  hudScore.classList.add('active');
+  updateHUD();
+
+  if (type === 'mundo') {
+    beginMundoPresenca();
+  } else {
+    beginCLTOuro();
+  }
+
+  // Start timer
+  gameTimer = setInterval(() => {
+    timeRemaining--;
+    updateHUD();
+    if (timeRemaining <= 0) {
+      endGame();
+    }
+  }, 1000);
+}
+
+function stopGame() {
+  gameActive = false;
+  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+  if (nodCooldownTimer) { clearTimeout(nodCooldownTimer); nodCooldownTimer = null; }
+}
+
+// ===== HUD UPDATE =====
+function updateHUD() {
+  hudScore.textContent = score + ' pts';
+  const mins = Math.floor(timeRemaining / 60);
+  const secs = timeRemaining % 60;
+  hudTimer.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+
+  if (currentGame === 'mundo') {
+    hudCenter.innerHTML = '<span class="hud-lives">' + '&#9829;'.repeat(lives) + '</span>';
+  } else {
+    const pct = Math.round((destroyedFragments / totalFragments) * 100);
+    hudCenter.innerHTML = '<span class="hud-progress">' + pct + '% revelado</span>';
+  }
+}
+
+// ===== GAME 1: MUNDO PRESENCA =====
+function beginMundoPresenca() {
+  game1World.setAttribute('visible', true);
+  game2World.setAttribute('visible', false);
+  // Show skybox for game 1, hide stars
+  document.getElementById('game-sky').setAttribute('visible', true);
+  document.getElementById('game-sky').setAttribute('src', '#skybox-office');
+  document.getElementById('shared-env').setAttribute('visible', false);
+  game1Labels.classList.add('active');
+  wordIndicator.classList.add('active');
+  touchZones.classList.add('active');
+
+  // Shuffle words
+  shuffledWords = [...WORDS].sort(() => Math.random() - 0.5);
+  currentWordIndex = 0;
+  sortingCooldown = false;
+
+  showNextWord();
+  startHeadDirectionDetection();
+}
+
+function showNextWord() {
+  if (!gameActive) return;
+  if (currentWordIndex >= shuffledWords.length) {
+    // Reshuffle
+    shuffledWords = [...WORDS].sort(() => Math.random() - 0.5);
+    currentWordIndex = 0;
+  }
+  const word = shuffledWords[currentWordIndex];
+  wordText.textContent = word.text;
+  wordText.style.borderColor = 'rgba(255,139,26,0.3)';
+  wordHint.textContent = 'Olhe para esquerda ou direita';
+  // Fade-in animation
+  wordText.classList.remove('word-fade-in');
+  void wordText.offsetWidth;
+  wordText.classList.add('word-fade-in');
+  sortingCooldown = false;
+}
+
+function sortWord(direction) {
+  if (!gameActive || sortingCooldown) return;
+  sortingCooldown = true;
+
+  const word = shuffledWords[currentWordIndex];
+  const correct = (direction === word.side);
+
+  if (correct) {
+    score += DIFFICULTY_POINTS[word.difficulty];
+    flashFeedback('correct');
+  } else {
+    lives--;
+    flashFeedback('wrong');
+    if (lives <= 0) {
+      // Fly out then end
+      flyWord(direction, () => endGame());
+      updateHUD();
+      return;
+    }
+  }
+
+  updateHUD();
+  currentWordIndex++;
+  flyWord(direction, () => showNextWord());
+}
+
+function flyWord(direction, callback) {
+  const flyClass = direction === 'left' ? 'word-fly-left' : 'word-fly-right';
+  wordText.classList.remove('word-fly-left', 'word-fly-right', 'word-fade-in');
+  // Force reflow so animation restarts cleanly
+  void wordText.offsetWidth;
+  wordText.classList.add(flyClass);
+  setTimeout(() => {
+    wordText.classList.remove(flyClass);
+    callback();
+  }, 310);
+}
+
+function flashFeedback(type) {
+  feedbackFlash.className = type;
+  setTimeout(() => { feedbackFlash.className = ''; }, 250);
+}
+
+// Head direction detection for Game 1
+let headDetectionRAF = null;
+function startHeadDirectionDetection() {
+  const camera = document.getElementById('main-camera');
+  const THRESHOLD = 0.4; // ~23 degrees in radians - tilt head (ear to shoulder)
+
+  function checkDirection() {
+    if (!gameActive || currentGame !== 'mundo') return;
+
+    const rotation = camera.object3D.rotation;
+    // Z-rotation = tilt (inclinar cabeca, orelha no ombro)
+    // Positive Z = tilt left (left ear down), Negative Z = tilt right (right ear down)
+    const tilt = rotation.z;
+
+    if (!sortingCooldown) {
+      if (tilt > THRESHOLD) {
+        sortWord('left');
+      } else if (tilt < -THRESHOLD) {
+        sortWord('right');
+      }
+    }
+
+    headDetectionRAF = requestAnimationFrame(checkDirection);
+  }
+  headDetectionRAF = requestAnimationFrame(checkDirection);
+}
+
+// ===== GAME 2: CLT E OURO =====
+function beginCLTOuro() {
+  game1World.setAttribute('visible', false);
+  game2World.setAttribute('visible', true);
+  document.getElementById('game-sky').setAttribute('visible', false);
+  document.getElementById('shared-env').setAttribute('visible', true);
+  touchHitZone.classList.add('active');
+
+  destroyedFragments = 0;
+  completionTime = null;
+  createRockFragments();
+  document.getElementById('clt-silhouette').setAttribute('visible', false);
+
+  startNodDetection();
+  updateHUD();
+}
+
+function createRockFragments() {
+  const container = document.getElementById('rock-container');
+  // Clear existing
+  while (container.firstChild) container.removeChild(container.firstChild);
+  rockFragments = [];
+
+  totalFragments = 25;
+  const goldColors = ['#FFB800', '#FFC833', '#E5A300', '#CC9200', '#FFDD66'];
+
+  for (let i = 0; i < totalFragments; i++) {
+    const el = document.createElement('a-box');
+    const angle = (i / totalFragments) * Math.PI * 2;
+    const layer = Math.floor(i / 8);
+    const radius = 0.5 + Math.random() * 0.3;
+    const x = Math.cos(angle) * radius * 0.6;
+    const y = (layer - 1) * 0.4 + (Math.random() - 0.5) * 0.2;
+    const z = Math.sin(angle) * radius * 0.3;
+    const size = 0.2 + Math.random() * 0.2;
+
+    el.setAttribute('position', `${x} ${y} ${z}`);
+    el.setAttribute('width', size);
+    el.setAttribute('height', size);
+    el.setAttribute('depth', size);
+    el.setAttribute('rotation', `${Math.random()*30} ${Math.random()*30} ${Math.random()*30}`);
+
+    const color = goldColors[Math.floor(Math.random() * goldColors.length)];
+    el.setAttribute('color', color);
+    el.setAttribute('material', `metalness: 0.7; roughness: 0.3; emissive: ${color}; emissiveIntensity: 0.15`);
+
+    container.appendChild(el);
+    rockFragments.push({ el, integrity: 1 + Math.floor(Math.random() * 2), alive: true });
+  }
+}
+
+function registerHit() {
+  if (!gameActive || currentGame !== 'clt') return;
+
+  // Find a random alive fragment
+  const alive = rockFragments.filter(f => f.alive);
+  if (alive.length === 0) return;
+
+  const target = alive[Math.floor(Math.random() * alive.length)];
+  target.integrity--;
+
+  if (target.integrity <= 0) {
+    target.alive = false;
+    destroyedFragments++;
+
+    // Animate destruction: shrink and remove
+    const pos = target.el.getAttribute('position');
+    target.el.setAttribute('animation', `property: scale; to: 0 0 0; dur: 300; easing: easeInQuad`);
+    target.el.setAttribute('animation__pos', `property: position; to: ${pos.x} ${pos.y + 1} ${pos.z}; dur: 300`);
+    setTimeout(() => {
+      if (target.el.parentNode) target.el.parentNode.removeChild(target.el);
+    }, 350);
+
+    // Show silhouette progressively
+    if (destroyedFragments > totalFragments * 0.3) {
+      document.getElementById('clt-silhouette').setAttribute('visible', true);
+    }
+
+    // Check completion
+    if (destroyedFragments >= totalFragments) {
+      completionTime = 60 - timeRemaining;
+      score = Math.max(1, Math.round((60 - completionTime) * 100)); // faster = more points
+      endGame();
+      return;
+    }
+  } else {
+    // Visual hit feedback - shake
+    const pos = target.el.getAttribute('position');
+    target.el.setAttribute('animation', `property: position; to: ${pos.x + 0.05} ${pos.y} ${pos.z}; dur: 50; dir: alternate; loop: 2`);
+  }
+
+  // Show hit feedback text
+  showHitFeedback();
+  score += 10;
+  updateHUD();
+}
+
+function showHitFeedback() {
+  const texts = ['CRACK!', 'BAM!', 'POW!', 'TOCK!'];
+  hitFeedback.textContent = texts[Math.floor(Math.random() * texts.length)];
+  hitFeedback.style.display = 'block';
+  hitFeedback.style.left = (40 + Math.random() * 20) + '%';
+  hitFeedback.style.top = (40 + Math.random() * 20) + '%';
+  setTimeout(() => { hitFeedback.style.display = 'none'; }, 200);
+}
+
+// Nod detection for Game 2
+let nodDetectionRAF = null;
+function startNodDetection() {
+  const camera = document.getElementById('main-camera');
+  let lastNodTime = 0;
+  const COOLDOWN_MS = 400;
+  const NOD_DOWN_THRESHOLD = 0.44; // ~25 degrees
+  const NOD_REST_THRESHOLD = 0.17; // ~10 degrees
+  let wasResting = true;
+
+  function checkNod() {
+    if (!gameActive || currentGame !== 'clt') return;
+
+    const pitch = camera.object3D.rotation.x;
+
+    if (wasResting && pitch < -NOD_DOWN_THRESHOLD) {
+      // Looking down past threshold
+      const now = Date.now();
+      if (now - lastNodTime > COOLDOWN_MS) {
+        registerHit();
+        lastNodTime = now;
+        wasResting = false;
+      }
+    }
+
+    if (pitch > -NOD_REST_THRESHOLD) {
+      wasResting = true;
+    }
+
+    nodDetectionRAF = requestAnimationFrame(checkNod);
+  }
+  nodDetectionRAF = requestAnimationFrame(checkNod);
+}
+
+// ===== END GAME =====
+function endGame() {
+  stopGame();
+  hideAllScreens();
+
+  if (headDetectionRAF) { cancelAnimationFrame(headDetectionRAF); headDetectionRAF = null; }
+  if (nodDetectionRAF) { cancelAnimationFrame(nodDetectionRAF); nodDetectionRAF = null; }
+
+  const timeUsed = 60 - timeRemaining;
+
+  if (currentGame === 'mundo') {
+    $('result-title').textContent = 'Mundo Presenca';
+    $('result-score-value').textContent = score + ' pts';
+    $('result-detail').textContent = `Tempo: ${timeUsed}s | Vidas restantes: ${lives}`;
+    lastResult = { game: 'mundo', score, time: timeUsed };
+  } else {
+    const pct = Math.round((destroyedFragments / totalFragments) * 100);
+    if (completionTime !== null) {
+      $('result-title').textContent = 'CLT Libertado!';
+      $('result-score-value').textContent = score + ' pts';
+      $('result-detail').textContent = `Tempo: ${completionTime}s | 100% revelado`;
+      lastResult = { game: 'clt', score, time: completionTime };
+    } else {
+      $('result-title').textContent = 'Tempo Esgotado!';
+      $('result-score-value').textContent = score + ' pts';
+      $('result-detail').textContent = `${pct}% revelado em 60s`;
+      lastResult = { game: 'clt', score, time: 60 };
+    }
+  }
+
+  resultScreen.classList.add('active');
+  $('player-name').value = '';
+  $('player-phone').value = '';
+}
+
+function playAgain() {
+  hideAllScreens();
+  showIntro(currentGame);
+}
+
+// ===== RANKING SYSTEM =====
+function getRanking(game) {
+  const key = 'presenca_ranking_' + game;
+  try {
+    return JSON.parse(localStorage.getItem(key)) || [];
+  } catch { return []; }
+}
+
+function saveRanking(game, entry) {
+  const key = 'presenca_ranking_' + game;
+  const ranking = getRanking(game);
+  ranking.push(entry);
+  // Sort: highest score first, then lowest time
+  ranking.sort((a, b) => b.score - a.score || a.time - b.time);
+  // Keep top 50
+  localStorage.setItem(key, JSON.stringify(ranking.slice(0, 50)));
+}
+
+function saveAndShowRanking() {
+  const name = $('player-name').value.trim();
+  const phone = $('player-phone').value.trim();
+
+  if (!name) { $('player-name').style.borderColor = '#ff4444'; return; }
+  if (!phone) { $('player-phone').style.borderColor = '#ff4444'; return; }
+
+  saveRanking(lastResult.game, {
+    name,
+    phone,
+    score: lastResult.score,
+    time: lastResult.time,
+    date: new Date().toISOString()
+  });
+
+  resultScreen.classList.remove('active');
+  showRanking(lastResult.game);
+}
+
+let currentRankingTab = 'mundo';
+function showRanking(tab) {
+  hideAllScreens();
+  currentRankingTab = tab || 'mundo';
+  rankingScreen.classList.add('active');
+  renderRankingTab(currentRankingTab);
+}
+
+function showRankingTab(tab) {
+  currentRankingTab = tab;
+  // Update tab styles
+  document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderRankingTab(tab);
+}
+
+function renderRankingTab(tab) {
+  const ranking = getRanking(tab);
+  const table = $('ranking-table');
+
+  // Keep header, remove data rows
+  const rows = table.querySelectorAll('.ranking-row:not(.header)');
+  rows.forEach(r => r.remove());
+
+  if (ranking.length === 0) {
+    const row = document.createElement('div');
+    row.className = 'ranking-row';
+    row.innerHTML = '<div style="color:#666;width:100%;text-align:center;">Nenhum registro ainda</div>';
+    table.appendChild(row);
+    return;
+  }
+
+  ranking.slice(0, 10).forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'ranking-row';
+    row.innerHTML = `
+      <div class="ranking-pos">${i + 1}</div>
+      <div class="ranking-name">${escapeHtml(entry.name)}</div>
+      <div class="ranking-score">${entry.score}</div>
+      <div class="ranking-time">${entry.time}s</div>
+    `;
+    table.appendChild(row);
+  });
+}
+
+function closeRanking() {
+  rankingScreen.classList.remove('active');
+  if (gameActive || currentGame) {
+    // Stay in game context
+  } else {
+    mainMenu.classList.remove('hidden');
+  }
+}
+
+function exportCSV() {
+  const games = ['mundo', 'clt'];
+  let csv = 'Jogo,Posicao,Nome,Telefone,Pontuacao,Tempo(s),Data\n';
+
+  games.forEach(game => {
+    const ranking = getRanking(game);
+    ranking.forEach((entry, i) => {
+      const gameName = game === 'mundo' ? 'Mundo Presenca' : 'CLT e Ouro';
+      csv += `${gameName},${i + 1},"${entry.name}","${entry.phone || ''}",${entry.score},${entry.time},"${entry.date}"\n`;
+    });
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `presenca_ranking_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ===== VR =====
+function enterVR() {
+  const scene = document.querySelector('a-scene');
+  if (scene.is('vr-mode')) {
+    scene.exitVR();
+  } else {
+    scene.enterVR();
+  }
+}
+
+// ===== UTILITIES =====
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== PHONE INPUT MASK =====
+$('player-phone').addEventListener('input', function(e) {
+  let v = e.target.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  if (v.length > 7) {
+    v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  } else if (v.length > 2) {
+    v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  }
+  e.target.value = v;
+});
+
+// Reset border on input focus
+$('player-name').addEventListener('focus', function() { this.style.borderColor = 'rgba(255,139,26,0.4)'; });
+$('player-phone').addEventListener('focus', function() { this.style.borderColor = 'rgba(255,139,26,0.4)'; });
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  // Show main menu
+  mainMenu.classList.remove('hidden');
+});
+
+</script>
+</body>
+</html>
