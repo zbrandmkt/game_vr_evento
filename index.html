@@ -93,23 +93,17 @@
       z-index: 10002; text-align: center; padding: 20px;
     }
     #intro-overlay.active { display: flex; }
+    /* Transparent mode: no background, used during Mundo audio */
+    #intro-overlay.transparent {
+      background: transparent;
+      pointer-events: none;
+    }
     #intro-countdown {
       font-size: 96px; font-weight: 900; color: #fff;
       text-shadow: 0 0 40px rgba(255,139,26,0.8), 0 0 80px rgba(255,139,26,0.4);
       min-height: 120px; line-height: 1;
     }
-    /* Subtitle caption at bottom of intro */
-    #intro-text {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      width: 90%; max-width: 540px;
-      font-size: 18px; color: #fff; font-weight: 500; line-height: 1.5;
-      background: rgba(0,0,0,0.72);
-      padding: 12px 22px; border-radius: 10px;
-      border: 1px solid rgba(255,139,26,0.2);
-      min-height: 52px;
-      transition: opacity 0.3s;
-      white-space: pre-line;
-    }
+    #intro-text { display: none; }
 
     /* ===== HUD ===== */
     #game-hud {
@@ -440,7 +434,7 @@
 <!-- ===== A-FRAME SCENE ===== -->
 <a-scene
   vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: true"
+  device-orientation-permission-ui="enabled: false"
   renderer="antialias: false; alpha: false"
   fog="type: exponential; color: #0A0A0A; density: 0"
   embedded
@@ -732,14 +726,12 @@ const MUNDO_SUBTITLES = [
 
 function showIntro(type) {
   hideAllScreens();
-  introOverlay.classList.add('active');
-  introText.textContent = '';
   introCountdown.textContent = '';
 
   if (type === 'mundo') {
     showMundoIntroWithAudio();
   } else {
-    introText.textContent = 'CLT é Ouro.\nO trabalhador CLT é o novo ouro\ndo mercado de crédito.\nLiberte esse potencial!';
+    introOverlay.classList.add('active');
     setTimeout(() => {
       let count = 3;
       introCountdown.textContent = count;
@@ -753,48 +745,38 @@ function showIntro(type) {
           beginGame(type);
         }
       }, 1000);
-    }, 2500);
+    }, 1000);
   }
 }
 
 function showMundoIntroWithAudio() {
+  // Show VR environment immediately so player is immersed during audio
+  game1World.setAttribute('visible', true);
+  game2World.setAttribute('visible', false);
+  document.getElementById('game-sky').setAttribute('visible', true);
+  document.getElementById('game-sky').setAttribute('src', '#skybox-office');
+  document.getElementById('shared-env').setAttribute('visible', false);
+
   const audio = $('intro-audio');
   audio.currentTime = 0;
 
-  function onTimeUpdate() {
-    const t = audio.currentTime;
-    let seg = MUNDO_SUBTITLES[0];
-    for (let i = 0; i < MUNDO_SUBTITLES.length; i++) {
-      if (t >= MUNDO_SUBTITLES[i].t) seg = MUNDO_SUBTITLES[i];
-    }
-    introText.textContent = seg.sub;
-    introCountdown.textContent = seg.count;
-  }
-
   function onEnded() {
-    audio.removeEventListener('timeupdate', onTimeUpdate);
     audio.removeEventListener('ended', onEnded);
     introOverlay.classList.remove('active');
+    introOverlay.classList.remove('transparent');
     beginGame('mundo');
   }
 
-  audio.addEventListener('timeupdate', onTimeUpdate);
   audio.addEventListener('ended', onEnded);
 
   audio.play().catch(() => {
-    // Fallback sem áudio: exibe texto e faz countdown normal
-    audio.removeEventListener('timeupdate', onTimeUpdate);
+    // Fallback: start game after fixed delay if audio unavailable
     audio.removeEventListener('ended', onEnded);
-    introText.textContent = 'Bem-vindo ao Mundo Presença!\nSepare o futuro do passado.';
     setTimeout(() => {
-      let count = 3;
-      introCountdown.textContent = count;
-      const iv = setInterval(() => {
-        count--;
-        if (count > 0) { introCountdown.textContent = count; }
-        else { clearInterval(iv); introOverlay.classList.remove('active'); beginGame('mundo'); }
-      }, 1000);
-    }, 2000);
+      introOverlay.classList.remove('active');
+      introOverlay.classList.remove('transparent');
+      beginGame('mundo');
+    }, 3000);
   });
 }
 
