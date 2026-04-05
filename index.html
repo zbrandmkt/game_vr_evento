@@ -443,6 +443,7 @@
   <!-- ===== ASSETS ===== -->
   <a-assets>
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
+    <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
     <img id="logo-presenca" src="assets/logo-pb-deitada.png" crossorigin="anonymous">
   </a-assets>
 
@@ -942,8 +943,9 @@ function startHeadDirectionDetection() {
 function beginCLTOuro() {
   game1World.setAttribute('visible', false);
   game2World.setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('visible', false);
-  document.getElementById('shared-env').setAttribute('visible', true);
+  document.getElementById('game-sky').setAttribute('visible', true);
+  document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
+  document.getElementById('shared-env').setAttribute('visible', false);
   touchHitZone.classList.add('active');
 
   destroyedFragments = 0;
