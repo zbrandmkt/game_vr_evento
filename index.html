@@ -445,6 +445,7 @@
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
     <img id="logo-presenca" src="assets/logo-pb-deitada.png" crossorigin="anonymous">
+    <a-asset-item id="picareta-model" src="assets/picareta.glb"></a-asset-item>
   </a-assets>
 
   <!-- ===== SKYBOX (global, swapped per game) ===== -->
@@ -457,6 +458,16 @@
       position="0 1.6 0"
       look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
       wasd-controls="enabled: false">
+      <!-- First-person pickaxe (Game 2 only) -->
+      <a-gltf-model
+        id="picareta-fp"
+        src="#picareta-model"
+        position="0.35 -0.45 -0.7"
+        rotation="0 200 0"
+        scale="0.8 0.8 0.8"
+        visible="false"
+        animation-mixer="clip: EmptyAction; loop: repeat; timeScale: 1">
+      </a-gltf-model>
     </a-camera>
   </a-entity>
 
@@ -693,6 +704,7 @@ function hideAllScreens() {
   gameHud.classList.remove('active');
   hudScore.classList.remove('active');
   game1Labels.classList.remove('active');
+  $('picareta-fp').setAttribute('visible', false);
   wordIndicator.classList.remove('active');
   touchZones.classList.remove('active');
   touchHitZone.classList.remove('active');
@@ -939,6 +951,11 @@ function beginCLTOuro() {
   document.getElementById('shared-env').setAttribute('visible', false);
   touchHitZone.classList.add('active');
 
+  // Show first-person pickaxe
+  const picareta = $('picareta-fp');
+  picareta.setAttribute('visible', true);
+  picareta.setAttribute('animation-mixer', 'clip: EmptyAction; loop: repeat; timeScale: 1');
+
   destroyedFragments = 0;
   completionTime = null;
   createRockFragments();
@@ -982,8 +999,18 @@ function createRockFragments() {
   }
 }
 
+function swingPickaxe() {
+  const picareta = $('picareta-fp');
+  picareta.setAttribute('animation-mixer', 'clip: PicaretaAction; loop: once; timeScale: 1.5; clampWhenFinished: true');
+  picareta.addEventListener('animation-finished', function onSwingDone() {
+    picareta.removeEventListener('animation-finished', onSwingDone);
+    picareta.setAttribute('animation-mixer', 'clip: EmptyAction; loop: repeat; timeScale: 1');
+  });
+}
+
 function registerHit() {
   if (!gameActive || currentGame !== 'clt') return;
+  swingPickaxe();
 
   // Find a random alive fragment
   const alive = rockFragments.filter(f => f.alive);
