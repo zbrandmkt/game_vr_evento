@@ -462,11 +462,11 @@
       <a-gltf-model
         id="picareta-fp"
         src="#picareta-model"
-        position="0.45 -1.05 -0.65"
-        rotation="0 175 -15"
-        scale="0.1 0.1 0.1"
+        position="0.38 -0.55 -0.75"
+        rotation="15 180 -12"
+        scale="0.12 0.12 0.12"
         visible="false"
-        animation-mixer="clip: EmptyAction; loop: repeat; timeScale: 1">
+        animation-mixer="clip: Cubo.001Action; loop: repeat; timeScale: 0.5">
       </a-gltf-model>
     </a-camera>
   </a-entity>
@@ -954,7 +954,7 @@ function beginCLTOuro() {
   // Show first-person pickaxe
   const picareta = $('picareta-fp');
   picareta.setAttribute('visible', true);
-  picareta.setAttribute('animation-mixer', 'clip: EmptyAction; loop: repeat; timeScale: 1');
+  picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
 
   destroyedFragments = 0;
   completionTime = null;
@@ -1001,10 +1001,10 @@ function createRockFragments() {
 
 function swingPickaxe() {
   const picareta = $('picareta-fp');
-  picareta.setAttribute('animation-mixer', 'clip: PicaretaAction; loop: once; timeScale: 1.5; clampWhenFinished: true');
+  picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: once; timeScale: 2; clampWhenFinished: true');
   picareta.addEventListener('animation-finished', function onSwingDone() {
     picareta.removeEventListener('animation-finished', onSwingDone);
-    picareta.setAttribute('animation-mixer', 'clip: EmptyAction; loop: repeat; timeScale: 1');
+    picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
   });
 }
 
