@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>CLT é Ouro — Ranking | Presença Bank</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --orange: #FF8B1A;
@@ -27,6 +27,20 @@
       background: var(--cream);
       color: var(--dark);
       min-height: 100vh;
+    }
+
+    /* ===== PARTICLES CANVAS ===== */
+    #particles-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+    .header, .main, #promoter-bar, .promoter-tag, .footer {
+      position: relative;
+      z-index: 1;
     }
 
     /* ===== HEADER ===== */
@@ -136,7 +150,7 @@
     }
     .modal-score-wrap { margin-bottom: 24px; }
     .modal-score {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Nunito', sans-serif;
       font-size: 80px;
       font-weight: 700;
       color: var(--orange);
@@ -210,19 +224,31 @@
     }
     .section-head {
       display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 20px;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 28px;
     }
     .section-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 32px;
-      font-weight: 700;
+      font-family: 'Nunito', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
       color: var(--dark);
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .section-subtitle {
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: 0.3px;
+      margin-top: 6px;
     }
     .section-count {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--gray-600);
+      margin-top: 10px;
     }
 
     /* ===== PODIUM ===== */
@@ -266,7 +292,7 @@
       margin-bottom: 6px;
     }
     .podium-pts {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Nunito', sans-serif;
       font-size: 26px;
       font-weight: 700;
       color: var(--orange);
@@ -278,6 +304,11 @@
       background: var(--white);
       border-radius: 20px;
       border: 1px solid var(--gray-100);
+      overflow: visible; /* allow kebab dropdown to escape */
+    }
+    /* re-clip only the header row */
+    .trow.thead {
+      border-radius: 20px 20px 0 0;
       overflow: hidden;
     }
     .trow {
@@ -345,7 +376,7 @@
       box-shadow: 0 24px 80px rgba(0,0,0,0.18);
     }
     .edit-title {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Nunito', sans-serif;
       font-size: 22px; font-weight: 700;
       margin-bottom: 4px;
     }
@@ -395,7 +426,7 @@
       100% { background: var(--white); }
     }
     .t-pos {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Nunito', sans-serif;
       font-size: 22px;
       font-weight: 700;
       color: var(--gray-300);
@@ -417,7 +448,7 @@
       margin-top: 2px;
     }
     .t-score {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Nunito', sans-serif;
       font-size: 26px;
       font-weight: 700;
       color: var(--orange);
@@ -501,7 +532,7 @@
       box-shadow: 0 24px 80px rgba(0,0,0,0.18);
     }
     .login-logo { height: 32px; margin-bottom: 28px; }
-    .login-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+    .login-title { font-family: 'Nunito', sans-serif; font-size: 24px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
     .login-sub { font-size: 13px; color: var(--gray-600); margin-bottom: 28px; }
     .login-input {
       width: 100%; padding: 13px 16px;
@@ -610,6 +641,7 @@
 
   <div class="section-head">
     <h1 class="section-title">Ranking</h1>
+    <div class="section-subtitle">O futuro do consignado é com Presença</div>
     <span class="section-count" id="count-label"><span class="live-dot"></span>Ao vivo</span>
   </div>
 
@@ -632,8 +664,71 @@
   </div>
 </main>
 
+<canvas id="particles-canvas"></canvas>
 <div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
 <div class="footer">Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo</div>
+
+<!-- Particles -->
+<script>
+(function(){
+  const canvas = document.getElementById('particles-canvas');
+  const ctx = canvas.getContext('2d');
+  const ORANGE = '#FF8B1A';
+  let W, H, pts = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  function spawn() {
+    // All particles travel diagonally bottom-left → top-right (like in the stand image)
+    return {
+      x: rand(-W * 0.2, W * 1.1),
+      y: rand(H * 0.2, H * 1.4),
+      r: rand(1.5, 4.5),
+      opacity: rand(0.15, 0.55),
+      speed: rand(0.18, 0.55),
+      angle: rand(-52, -40) * Math.PI / 180  // diagonal up-right
+    };
+  }
+
+  function init() {
+    pts = [];
+    for (let i = 0; i < 55; i++) {
+      const p = spawn();
+      // scatter them across the canvas at start
+      p.x += rand(0, W);
+      p.y -= rand(0, H);
+      pts.push(p);
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = ORANGE;
+      ctx.globalAlpha = p.opacity;
+      ctx.fill();
+
+      p.x += Math.cos(p.angle) * p.speed;
+      p.y += Math.sin(p.angle) * p.speed;
+
+      // reset when fully off screen top-right
+      if (p.x > W + 20 || p.y < -20) Object.assign(p, spawn());
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  resize(); init(); draw();
+})();
+</script>
 
 <!-- Firebase SDK v12 (modular) -->
 <script type="module">
