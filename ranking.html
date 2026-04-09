@@ -762,18 +762,14 @@ let modalOpen = false;
 let _allEntries = [];
 
 onValue(ref(db, 'rankings/clt'), snap => {
-  console.log('[onValue] Disparou. Filhos:', snap.size);
   const entries = [];
   snap.forEach(c => {
     const v = c.val();
-    console.log('[onValue] Entrada:', c.key, v);
     entries.push({ key: c.key, name: v.name || 'Anônimo', score: Number(v.score) || 0, wa: v.wa || '', ts: v.ts || 0 });
   });
   entries.sort((a, b) => b.score - a.score);
   _allEntries = entries;
-  console.log('[onValue] Chamando renderAll com', entries.length, 'entradas');
   renderAll(entries);
-  console.log('[onValue] renderAll concluído');
 });
 
 // ===== MODO PROMOTOR =====
