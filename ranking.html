@@ -127,6 +127,13 @@
       border-radius: 50%;
       animation: blink 1s infinite;
     }
+    .modal-queue {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--gray-600);
+      background: var(--gray-50); border-radius: 20px;
+      padding: 4px 12px; margin-top: -10px; margin-bottom: 16px;
+      display: inline-block; min-height: 22px;
+    }
     .modal-score-wrap { margin-bottom: 24px; }
     .modal-score {
       font-family: 'Cormorant Garamond', serif;
@@ -466,6 +473,7 @@
 <div id="score-modal">
   <div class="modal-card">
     <div class="modal-badge">Nova pontuação!</div>
+    <div class="modal-queue" id="modal-queue"></div>
     <div class="modal-score-wrap">
       <div class="modal-score" id="modal-pts">0</div>
       <div class="modal-score-label">pontos &bull; CLT é Ouro</div>
@@ -541,7 +549,10 @@ const auth = getAuth(app);
 
 // ===== MODO =====
 const isPromoter = new URLSearchParams(location.search).get('mode') === 'promoter';
-let pendingKey = null, pendingScore = 0;
+
+// Fila: array de { key, score } aguardando o promotor processar
+const queue = [];
+let modalOpen = false;
 
 // ===== RANKING PÚBLICO (sempre ativo) =====
 onValue(ref(db, 'rankings/clt'), snap => {
@@ -553,7 +564,6 @@ onValue(ref(db, 'rankings/clt'), snap => {
 
 // ===== MODO PROMOTOR =====
 if (isPromoter) {
-  // Exige login — mostra modal
   onAuthStateChanged(auth, user => {
     if (user) {
       activatePromoterMode();
@@ -569,17 +579,37 @@ function activatePromoterMode() {
   document.getElementById('promoter-bar').classList.add('active');
   document.getElementById('promoter-tag').style.display = 'block';
 
+  // Cada score novo vai para a fila
   onChildAdded(ref(db, 'pending'), snap => {
-    const d      = snap.val();
-    pendingKey   = snap.key;
-    pendingScore = d.score || 0;
-
-    document.getElementById('modal-pts').textContent = pendingScore;
-    document.getElementById('inp-name').value = '';
-    document.getElementById('inp-wa').value   = '';
-    document.getElementById('score-modal').classList.add('active');
-    setTimeout(() => document.getElementById('inp-name').focus(), 300);
+    queue.push({ key: snap.key, score: snap.val().score || 0 });
+    updateQueueBadge();
+    // Abre o modal só se não houver nenhum aberto
+    if (!modalOpen) processNext();
   });
+}
+
+function processNext() {
+  if (!queue.length) { modalOpen = false; return; }
+  modalOpen = true;
+  const item = queue[0]; // não remove ainda — só remove ao confirmar/pular
+
+  document.getElementById('modal-pts').textContent = item.score;
+  document.getElementById('modal-queue').textContent =
+    queue.length > 1 ? `+${queue.length - 1} na fila` : '';
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-wa').value   = '';
+  document.getElementById('score-modal').classList.add('active');
+  setTimeout(() => document.getElementById('inp-name').focus(), 300);
+}
+
+function updateQueueBadge() {
+  const badge = document.getElementById('modal-queue');
+  if (badge) badge.textContent = queue.length > 1 ? `+${queue.length - 1} na fila` : '';
+  // Atualiza barra do promotor
+  const bar = document.querySelector('.pbar-text');
+  if (bar) bar.textContent = queue.length
+    ? `Modo Promotor ativo — ${queue.length} pontuação(ões) na fila`
+    : 'Modo Promotor ativo — aguardando próxima pontuação...';
 }
 
 // ===== LOGIN =====
@@ -611,11 +641,15 @@ window.confirmScore = function() {
 window.skipScore = function() { saveEntry('Anônimo', ''); };
 
 function saveEntry(name, wa) {
-  if (!pendingKey) return;
-  push(ref(db, 'rankings/clt'), { name, wa, score: pendingScore, ts: Date.now() });
-  remove(ref(db, 'pending/' + pendingKey));
-  pendingKey = null;
+  if (!queue.length) return;
+  const item = queue.shift(); // remove o primeiro da fila
+  push(ref(db, 'rankings/clt'), { name, wa, score: item.score, ts: Date.now() });
+  remove(ref(db, 'pending/' + item.key));
   document.getElementById('score-modal').classList.remove('active');
+  modalOpen = false;
+  updateQueueBadge();
+  // Processa o próximo da fila após breve pausa
+  if (queue.length) setTimeout(processNext, 600);
 }
 
 // Enter no modal de score
