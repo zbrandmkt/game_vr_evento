@@ -9,6 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- Firebase SDK (compat mode) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -328,7 +331,7 @@
 
   <!-- MAIN MENU -->
   <div id="main-menu">
-    <img class="menu-logo" src="assets/logo-pb-deitada.png" alt="Presenca" style="width:220px;height:auto;margin-bottom:15px;">
+    <img class="menu-logo" src="assets/logo-branco.png" alt="Presenca" style="width:220px;height:auto;margin-bottom:15px;">
     <div class="menu-title" style="display:none;">Presenca</div>
     <div class="menu-subtitle">Leve sua operacao para outro nivel</div>
 
@@ -410,7 +413,7 @@
 
   <!-- RANKING SCREEN -->
   <div id="ranking-screen">
-    <img src="assets/logo-pb-deitada.png" alt="Presenca" style="width:120px;height:auto;">
+    <img src="assets/logo-branco.png" alt="Presenca" style="width:120px;height:auto;">
     <div class="ranking-title">Ranking</div>
     <div class="ranking-tabs">
       <button class="ranking-tab active" onclick="showRankingTab('mundo')">Mundo Presenca</button>
@@ -445,7 +448,7 @@
   <a-assets>
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
-    <img id="logo-presenca" src="assets/logo-pb-deitada.png" crossorigin="anonymous">
+    <img id="logo-presenca" src="assets/logo-branco.png" crossorigin="anonymous">
     <a-asset-item id="picareta-model" src="assets/picareta.glb"></a-asset-item>
   </a-assets>
 
@@ -557,6 +560,46 @@ AFRAME.registerComponent('star-field', {
     this.el.setObject3D('stars', stars);
   }
 });
+
+// ===== FIREBASE CONFIG =====
+// ATENÇÃO: substitua pelos valores do seu projeto Firebase
+// Crie em https://console.firebase.google.com → Project Settings → SDK setup
+const FIREBASE_CONFIG = {
+  apiKey: "COLE_AQUI",
+  authDomain: "COLE_AQUI",
+  databaseURL: "COLE_AQUI",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
+};
+
+let firebaseDB = null;
+try {
+  if (FIREBASE_CONFIG.apiKey !== "COLE_AQUI") {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseDB = firebase.database();
+    console.log('[Firebase] Conectado com sucesso.');
+  } else {
+    console.warn('[Firebase] Config não preenchida — ranking em nuvem desativado.');
+  }
+} catch(e) {
+  console.error('[Firebase] Erro ao inicializar:', e);
+}
+
+function pushScoreToPending(gameType, scoreValue, timeUsed) {
+  if (!firebaseDB) return;
+  const entry = {
+    game: gameType,
+    score: scoreValue,
+    time: timeUsed,
+    date: new Date().toISOString(),
+    status: 'pending'
+  };
+  firebaseDB.ref('pending').push(entry)
+    .then(() => console.log('[Firebase] Score enviado para pending.'))
+    .catch(e => console.error('[Firebase] Erro ao enviar score:', e));
+}
 
 // ===== GAME DATA =====
 const WORDS = [
@@ -1114,6 +1157,7 @@ function endGame() {
     $('result-score-value').textContent = score + ' pts';
     $('result-detail').textContent = `Tempo: ${timeUsed}s | Vidas restantes: ${lives}`;
     lastResult = { game: 'mundo', score, time: timeUsed };
+    pushScoreToPending('mundo', score, timeUsed);
   } else {
     const pct = Math.round((destroyedFragments / totalFragments) * 100);
     if (completionTime !== null) {
@@ -1121,11 +1165,13 @@ function endGame() {
       $('result-score-value').textContent = score + ' pts';
       $('result-detail').textContent = `Tempo: ${completionTime}s | 100% revelado`;
       lastResult = { game: 'clt', score, time: completionTime };
+      pushScoreToPending('clt', score, completionTime);
     } else {
       $('result-title').textContent = 'Tempo Esgotado!';
       $('result-score-value').textContent = score + ' pts';
       $('result-detail').textContent = `${pct}% revelado em 60s`;
       lastResult = { game: 'clt', score, time: 60 };
+      pushScoreToPending('clt', score, 60);
     }
   }
 

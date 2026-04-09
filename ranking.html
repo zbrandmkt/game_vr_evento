@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CLT é Ouro — Ranking | Presença Bank</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF8B1A;
+      --orange-dark: #E07500;
+      --gold: #C9962A;
+      --white: #FFFFFF;
+      --cream: #FAFAF8;
+      --gray-50: #F5F5F2;
+      --gray-100: #E8E8E0;
+      --gray-300: #B0AFA8;
+      --gray-600: #6B6B63;
+      --dark: #1A1A18;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--cream);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-100);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .header-logo { height: 36px; width: auto; object-fit: contain; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .header-event { font-size: 12px; color: var(--gray-600); display: none; }
+    @media (min-width: 480px) { .header-event { display: block; } }
+    .header-badge {
+      background: var(--orange);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+
+    /* ===== PROMOTER BAR ===== */
+    #promoter-bar {
+      display: none;
+      background: linear-gradient(135deg, #FF8B1A 0%, #E05A00 100%);
+      padding: 14px 24px;
+      color: white;
+      align-items: center;
+      gap: 10px;
+    }
+    #promoter-bar.active { display: flex; }
+    .pbar-dot {
+      width: 8px; height: 8px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; } 50% { opacity: 1; }
+    }
+    .pbar-text { font-size: 13px; font-weight: 500; }
+
+    /* ===== SCORE MODAL ===== */
+    #score-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,15,15,0.55);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #score-modal.active { display: flex; }
+
+    .modal-card {
+      background: var(--white);
+      border-radius: 24px;
+      padding: 36px 32px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.18);
+      animation: modalIn 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes modalIn {
+      from { transform: translateY(32px) scale(0.96); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .modal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #FFF3E0;
+      color: var(--orange);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .modal-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--orange);
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    .modal-score-wrap { margin-bottom: 24px; }
+    .modal-score {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 80px;
+      font-weight: 700;
+      color: var(--orange);
+      line-height: 1;
+    }
+    .modal-score-label {
+      font-size: 13px;
+      color: var(--gray-600);
+      margin-top: 4px;
+    }
+    .modal-divider {
+      border: none;
+      border-top: 1px solid var(--gray-100);
+      margin: 0 0 20px;
+    }
+    .form-row { margin-bottom: 14px; }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--gray-600);
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 13px 16px;
+      border: 1.5px solid var(--gray-100);
+      border-radius: 12px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 16px;
+      color: var(--dark);
+      outline: none;
+      transition: border-color 0.2s;
+      background: var(--white);
+    }
+    .form-input:focus { border-color: var(--orange); }
+    .btn-primary {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #FF8B1A 0%, #E05A00 100%);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-secondary {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: var(--gray-600);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* ===== MAIN ===== */
+    .main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    .section-count {
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    /* ===== PODIUM ===== */
+    #podium {
+      display: none;
+      grid-template-columns: 1fr 1.1fr 1fr;
+      gap: 10px;
+      margin-bottom: 24px;
+      align-items: flex-end;
+    }
+    #podium.visible { display: grid; }
+    .podium-card {
+      background: var(--white);
+      border: 1px solid var(--gray-100);
+      border-radius: 16px;
+      padding: 20px 12px;
+      text-align: center;
+    }
+    .podium-card.p1 {
+      border-color: rgba(201,150,42,0.4);
+      box-shadow: 0 6px 24px rgba(201,150,42,0.12);
+      padding: 24px 12px;
+    }
+    .podium-medal { font-size: 28px; margin-bottom: 6px; }
+    .podium-rank {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gray-300);
+      margin-bottom: 8px;
+    }
+    .p1 .podium-rank { color: var(--gold); }
+    .podium-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+    .podium-pts {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+    .p1 .podium-pts { color: var(--gold); font-size: 30px; }
+
+    /* ===== TABLE ===== */
+    .ranking-card {
+      background: var(--white);
+      border-radius: 20px;
+      border: 1px solid var(--gray-100);
+      overflow: hidden;
+    }
+    .trow {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--gray-50);
+      transition: background 0.15s;
+    }
+    .trow:last-child { border-bottom: none; }
+    .trow.thead {
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .trow.thead span {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gray-300);
+    }
+    .trow.highlight { animation: rowFlash 2.5s ease; }
+    @keyframes rowFlash {
+      0%, 40% { background: #FFF3E0; }
+      100% { background: var(--white); }
+    }
+    .t-pos {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gray-300);
+    }
+    .t-pos.g { color: var(--gold); }
+    .t-pos.s { color: #9BA4B5; }
+    .t-pos.b { color: #CD7F32; }
+    .t-info { min-width: 0; }
+    .t-name {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .t-time {
+      font-size: 11px;
+      color: var(--gray-300);
+      margin-top: 2px;
+    }
+    .t-score {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--orange);
+      text-align: right;
+    }
+    .empty-state {
+      padding: 52px 20px;
+      text-align: center;
+      color: var(--gray-300);
+      font-size: 15px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* ===== FIREBASE SETUP WARNING ===== */
+    #setup-warning {
+      display: none;
+      background: #FFF8E1;
+      border: 1px solid #FFD54F;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #5D4037;
+    }
+    #setup-warning strong { display: block; margin-bottom: 4px; }
+
+    /* ===== PROMOTER BADGE ===== */
+    .promoter-tag {
+      display: none;
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: var(--dark);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border-radius: 20px;
+      z-index: 300;
+    }
+
+    /* ===== LIVE DOT ===== */
+    .live-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #22C55E;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: blink 1.5s infinite;
+      vertical-align: middle;
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      color: var(--gray-300);
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <img class="header-logo" src="assets/logo-laranja.png" alt="Presença Bank">
+  <div class="header-right">
+    <span class="header-event">Workshop Corban360 · Abr 2026</span>
+    <span class="header-badge">CLT é Ouro</span>
+  </div>
+</header>
+
+<!-- Promoter Bar -->
+<div id="promoter-bar">
+  <div class="pbar-dot"></div>
+  <span class="pbar-text">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
+</div>
+
+<!-- New Score Modal -->
+<div id="score-modal">
+  <div class="modal-card">
+    <div class="modal-badge">Nova pontuação!</div>
+    <div class="modal-score-wrap">
+      <div class="modal-score" id="modal-pts">0</div>
+      <div class="modal-score-label">pontos &bull; CLT é Ouro</div>
+    </div>
+    <hr class="modal-divider">
+    <div class="form-row">
+      <label class="form-label">Nome do participante</label>
+      <input class="form-input" id="inp-name" type="text" placeholder="Nome completo" autocomplete="off" autocorrect="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">WhatsApp</label>
+      <input class="form-input" id="inp-wa" type="tel" placeholder="(11) 99999-9999" autocomplete="off">
+    </div>
+    <button class="btn-primary" onclick="confirmScore()">Salvar no Ranking</button>
+    <button class="btn-secondary" onclick="skipScore()">Pular cadastro</button>
+  </div>
+</div>
+
+<!-- Main -->
+<main class="main">
+  <div id="setup-warning">
+    <strong>⚠️ Firebase não configurado</strong>
+    Siga as instruções no arquivo para conectar ao banco de dados em tempo real.
+  </div>
+
+  <div class="section-head">
+    <h1 class="section-title">Ranking</h1>
+    <span class="section-count" id="count-label"><span class="live-dot"></span>Ao vivo</span>
+  </div>
+
+  <!-- Podium Top 3 -->
+  <div id="podium"></div>
+
+  <!-- Full Table -->
+  <div class="ranking-card">
+    <div class="trow thead">
+      <span>#</span>
+      <span>Participante</span>
+      <span>Pts</span>
+    </div>
+    <div id="ranking-list">
+      <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        Nenhuma pontuação ainda. Seja o primeiro!
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
+<div class="footer">Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG
+// Siga o passo a passo abaixo para configurar:
+//
+// 1. Acesse: https://console.firebase.google.com
+// 2. Clique em "Adicionar projeto" → nome: presenca-clt-ouro
+// 3. Desative Google Analytics → Criar projeto
+// 4. Clique em "Realtime Database" no menu lateral
+// 5. Clique em "Criar banco de dados"
+// 6. Escolha "Iniciar no modo de teste" → Próximo → Concluir
+// 7. Volte à visão geral → clique no ícone </> (Web app)
+// 8. Registre o app → copie os valores abaixo
+// ============================================================
+const firebaseConfig = {
+  apiKey:            "COLE_AQUI",
+  authDomain:        "COLE_AQUI.firebaseapp.com",
+  databaseURL:       "https://COLE_AQUI-default-rtdb.firebaseio.com",
+  projectId:         "COLE_AQUI",
+  storageBucket:     "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId:             "COLE_AQUI"
+};
+
+// ============================================================
+
+let db, isPromoter = false, pendingKey = null, pendingScore = 0;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} catch(e) {
+  document.getElementById('setup-warning').style.display = 'block';
+}
+
+// Detecta modo promotor: ranking.html?mode=promoter
+const params = new URLSearchParams(location.search);
+isPromoter = params.get('mode') === 'promoter';
+
+if (isPromoter) {
+  document.getElementById('promoter-bar').classList.add('active');
+  document.getElementById('promoter-tag').style.display = 'block';
+}
+
+// ============================================================
+// PROMOTOR: escuta novas pontuações pendentes
+// ============================================================
+if (isPromoter && db) {
+  db.ref('pending').on('child_added', snap => {
+    const d = snap.val();
+    pendingKey   = snap.key;
+    pendingScore = d.score || 0;
+
+    document.getElementById('modal-pts').textContent = pendingScore;
+    document.getElementById('inp-name').value = '';
+    document.getElementById('inp-wa').value   = '';
+    document.getElementById('score-modal').classList.add('active');
+    setTimeout(() => document.getElementById('inp-name').focus(), 300);
+  });
+}
+
+function confirmScore() {
+  const name = document.getElementById('inp-name').value.trim() || 'Anônimo';
+  const wa   = document.getElementById('inp-wa').value.trim();
+
+  if (!name) { document.getElementById('inp-name').focus(); return; }
+
+  saveEntry(name, wa);
+}
+
+function skipScore() {
+  saveEntry('Anônimo', '');
+}
+
+function saveEntry(name, wa) {
+  if (!pendingKey || !db) return;
+
+  db.ref('rankings/clt').push({
+    name, wa, score: pendingScore,
+    ts: Date.now()
+  });
+  db.ref('pending/' + pendingKey).remove();
+
+  pendingKey = null;
+  document.getElementById('score-modal').classList.remove('active');
+}
+
+// Enter para confirmar
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('score-modal').classList.contains('active')) {
+    confirmScore();
+  }
+});
+
+// ============================================================
+// RANKING: escuta atualizações em tempo real
+// ============================================================
+if (db) {
+  db.ref('rankings/clt').orderByChild('score').on('value', snap => {
+    const entries = [];
+    snap.forEach(c => entries.push({ key: c.key, ...c.val() }));
+    entries.sort((a, b) => b.score - a.score);
+    renderAll(entries);
+  });
+}
+
+function renderAll(entries) {
+  const n = entries.length;
+  document.getElementById('count-label').innerHTML =
+    `<span class="live-dot"></span>${n} participante${n !== 1 ? 's' : ''}`;
+
+  renderPodium(entries.slice(0, 3));
+  renderTable(entries);
+}
+
+function renderPodium(top) {
+  const pod = document.getElementById('podium');
+  if (top.length === 0) { pod.className = 'podium'; return; }
+  pod.className = 'podium visible';
+
+  const medals = ['🥇','🥈','🥉'];
+  const labels = ['1º lugar','2º lugar','3º lugar'];
+  const cls    = ['p1','p2','p3'];
+
+  // Ordem visual: 2º | 1º | 3º
+  const order  = top.length >= 3 ? [top[1], top[0], top[2]]
+               : top.length === 2 ? [top[1], top[0]]
+               : [top[0]];
+
+  pod.innerHTML = order.map(e => {
+    const i = top.indexOf(e);
+    return `
+    <div class="podium-card ${cls[i]}">
+      <div class="podium-medal">${medals[i]}</div>
+      <div class="podium-rank">${labels[i]}</div>
+      <div class="podium-name">${e.name || 'Anônimo'}</div>
+      <div class="podium-pts">${e.score}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTable(entries) {
+  const list = document.getElementById('ranking-list');
+  if (entries.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div>Nenhuma pontuação ainda. Seja o primeiro!</div>`;
+    return;
+  }
+  const posClass = i => i === 0 ? 'g' : i === 1 ? 's' : i === 2 ? 'b' : '';
+  const fmt = ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  list.innerHTML = entries.map((e, i) => `
+    <div class="trow" id="row-${e.key}">
+      <div class="t-pos ${posClass(i)}">${i + 1}</div>
+      <div class="t-info">
+        <div class="t-name">${e.name || 'Anônimo'}</div>
+        <div class="t-time">${fmt(e.ts)}</div>
+      </div>
+      <div class="t-score">${e.score}</div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>
