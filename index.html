@@ -9,9 +9,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <!-- Firebase SDK (compat mode) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Firebase SDK v12 (modular) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+    const app = initializeApp({
+      apiKey: "AIzaSyALkBD0Zd6uUDDX-mVm2mxI24eCEGBE6gs",
+      authDomain: "presenca-game-stand.firebaseapp.com",
+      databaseURL: "https://presenca-game-stand-default-rtdb.firebaseio.com",
+      projectId: "presenca-game-stand",
+      storageBucket: "presenca-game-stand.firebasestorage.app",
+      messagingSenderId: "397975465714",
+      appId: "1:397975465714:web:8d3c29cd70a7fa46c2aa6b"
+    });
+    const db = getDatabase(app);
+    window._fb = { db, ref, push };
+    console.log('[Firebase] VR game conectado.');
+  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -561,44 +575,14 @@ AFRAME.registerComponent('star-field', {
   }
 });
 
-// ===== FIREBASE CONFIG =====
-// ATENÇÃO: substitua pelos valores do seu projeto Firebase
-// Crie em https://console.firebase.google.com → Project Settings → SDK setup
-const FIREBASE_CONFIG = {
-  apiKey: "COLE_AQUI",
-  authDomain: "COLE_AQUI",
-  databaseURL: "COLE_AQUI",
-  projectId: "COLE_AQUI",
-  storageBucket: "COLE_AQUI",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI"
-};
-
-let firebaseDB = null;
-try {
-  if (FIREBASE_CONFIG.apiKey !== "COLE_AQUI") {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    firebaseDB = firebase.database();
-    console.log('[Firebase] Conectado com sucesso.');
-  } else {
-    console.warn('[Firebase] Config não preenchida — ranking em nuvem desativado.');
-  }
-} catch(e) {
-  console.error('[Firebase] Erro ao inicializar:', e);
-}
-
+// ===== FIREBASE PUSH =====
 function pushScoreToPending(gameType, scoreValue, timeUsed) {
-  if (!firebaseDB) return;
-  const entry = {
-    game: gameType,
-    score: scoreValue,
-    time: timeUsed,
-    date: new Date().toISOString(),
-    status: 'pending'
-  };
-  firebaseDB.ref('pending').push(entry)
-    .then(() => console.log('[Firebase] Score enviado para pending.'))
-    .catch(e => console.error('[Firebase] Erro ao enviar score:', e));
+  const fb = window._fb;
+  if (!fb) { console.warn('[Firebase] Não iniciado ainda.'); return; }
+  const entry = { game: gameType, score: scoreValue, time: timeUsed, date: new Date().toISOString() };
+  fb.push(fb.ref(fb.db, 'pending'), entry)
+    .then(() => console.log('[Firebase] Score enviado para promotor.'))
+    .catch(e => console.error('[Firebase] Erro:', e));
 }
 
 // ===== GAME DATA =====

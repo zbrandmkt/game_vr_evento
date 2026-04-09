@@ -384,6 +384,52 @@
       color: var(--gray-300);
       letter-spacing: 0.5px;
     }
+
+    /* ===== LOGIN MODAL ===== */
+    #login-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(10,10,10,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    #login-modal.active { display: flex; }
+    .login-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 100%; max-width: 380px;
+      margin: 16px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+    }
+    .login-logo { height: 32px; margin-bottom: 28px; }
+    .login-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: var(--gray-600); margin-bottom: 28px; }
+    .login-input {
+      width: 100%; padding: 13px 16px;
+      border: 1.5px solid var(--gray-100); border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+      color: var(--dark); background: var(--gray-50);
+      margin-bottom: 12px; outline: none;
+      transition: border-color .2s;
+    }
+    .login-input:focus { border-color: var(--orange); background: #fff; }
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: var(--orange); color: white;
+      border: none; border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 4px;
+      transition: background .2s;
+    }
+    .login-btn:hover { background: var(--orange-dark); }
+    .login-error {
+      display: none; margin-top: 12px;
+      font-size: 13px; color: #DC2626; text-align: center;
+    }
+    .login-error.show { display: block; }
   </style>
 </head>
 <body>
@@ -401,6 +447,19 @@
 <div id="promoter-bar">
   <div class="pbar-dot"></div>
   <span class="pbar-text">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
+</div>
+
+<!-- Login Modal (promoter only) -->
+<div id="login-modal">
+  <div class="login-card">
+    <img class="login-logo" src="assets/logo-laranja.png" alt="Presença">
+    <div class="login-title">Acesso Promotor</div>
+    <div class="login-sub">Entre com suas credenciais para gerenciar o ranking.</div>
+    <input class="login-input" id="login-email" type="email" placeholder="E-mail" autocomplete="email">
+    <input class="login-input" id="login-pass" type="password" placeholder="Senha" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="login-error">E-mail ou senha incorretos. Tente novamente.</div>
+  </div>
 </div>
 
 <!-- New Score Modal -->
@@ -459,60 +518,59 @@
 <div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
 <div class="footer">Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo</div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<!-- Firebase SDK v12 (modular) -->
+<script type="module">
+import { initializeApp }                              from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded,
+         onValue, remove }                            from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword,
+         onAuthStateChanged }                         from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-<script>
-// ============================================================
-// FIREBASE CONFIG
-// Siga o passo a passo abaixo para configurar:
-//
-// 1. Acesse: https://console.firebase.google.com
-// 2. Clique em "Adicionar projeto" → nome: presenca-clt-ouro
-// 3. Desative Google Analytics → Criar projeto
-// 4. Clique em "Realtime Database" no menu lateral
-// 5. Clique em "Criar banco de dados"
-// 6. Escolha "Iniciar no modo de teste" → Próximo → Concluir
-// 7. Volte à visão geral → clique no ícone </> (Web app)
-// 8. Registre o app → copie os valores abaixo
-// ============================================================
-const firebaseConfig = {
-  apiKey:            "COLE_AQUI",
-  authDomain:        "COLE_AQUI.firebaseapp.com",
-  databaseURL:       "https://COLE_AQUI-default-rtdb.firebaseio.com",
-  projectId:         "COLE_AQUI",
-  storageBucket:     "COLE_AQUI.appspot.com",
-  messagingSenderId: "COLE_AQUI",
-  appId:             "COLE_AQUI"
-};
+// ===== CONFIG =====
+const app  = initializeApp({
+  apiKey:            "AIzaSyALkBD0Zd6uUDDX-mVm2mxI24eCEGBE6gs",
+  authDomain:        "presenca-game-stand.firebaseapp.com",
+  databaseURL:       "https://presenca-game-stand-default-rtdb.firebaseio.com",
+  projectId:         "presenca-game-stand",
+  storageBucket:     "presenca-game-stand.firebasestorage.app",
+  messagingSenderId: "397975465714",
+  appId:             "1:397975465714:web:8d3c29cd70a7fa46c2aa6b"
+});
+const db   = getDatabase(app);
+const auth = getAuth(app);
 
-// ============================================================
+// ===== MODO =====
+const isPromoter = new URLSearchParams(location.search).get('mode') === 'promoter';
+let pendingKey = null, pendingScore = 0;
 
-let db, isPromoter = false, pendingKey = null, pendingScore = 0;
+// ===== RANKING PÚBLICO (sempre ativo) =====
+onValue(ref(db, 'rankings/clt'), snap => {
+  const entries = [];
+  snap.forEach(c => entries.push({ key: c.key, ...c.val() }));
+  entries.sort((a, b) => b.score - a.score);
+  renderAll(entries);
+});
 
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.database();
-} catch(e) {
-  document.getElementById('setup-warning').style.display = 'block';
+// ===== MODO PROMOTOR =====
+if (isPromoter) {
+  // Exige login — mostra modal
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      activatePromoterMode();
+    } else {
+      document.getElementById('login-modal').classList.add('active');
+      setTimeout(() => document.getElementById('login-email').focus(), 300);
+    }
+  });
 }
 
-// Detecta modo promotor: ranking.html?mode=promoter
-const params = new URLSearchParams(location.search);
-isPromoter = params.get('mode') === 'promoter';
-
-if (isPromoter) {
+function activatePromoterMode() {
+  document.getElementById('login-modal').classList.remove('active');
   document.getElementById('promoter-bar').classList.add('active');
   document.getElementById('promoter-tag').style.display = 'block';
-}
 
-// ============================================================
-// PROMOTOR: escuta novas pontuações pendentes
-// ============================================================
-if (isPromoter && db) {
-  db.ref('pending').on('child_added', snap => {
-    const d = snap.val();
+  onChildAdded(ref(db, 'pending'), snap => {
+    const d      = snap.val();
     pendingKey   = snap.key;
     pendingScore = d.score || 0;
 
@@ -524,78 +582,66 @@ if (isPromoter && db) {
   });
 }
 
-function confirmScore() {
-  const name = document.getElementById('inp-name').value.trim() || 'Anônimo';
-  const wa   = document.getElementById('inp-wa').value.trim();
+// ===== LOGIN =====
+window.doLogin = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged cuida do resto
+  } catch(e) {
+    errEl.classList.add('show');
+  }
+};
 
+// Enter no login
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
+});
+
+// ===== CONFIRMAR / PULAR SCORE =====
+window.confirmScore = function() {
+  const name = document.getElementById('inp-name').value.trim();
   if (!name) { document.getElementById('inp-name').focus(); return; }
+  saveEntry(name, document.getElementById('inp-wa').value.trim());
+};
 
-  saveEntry(name, wa);
-}
-
-function skipScore() {
-  saveEntry('Anônimo', '');
-}
+window.skipScore = function() { saveEntry('Anônimo', ''); };
 
 function saveEntry(name, wa) {
-  if (!pendingKey || !db) return;
-
-  db.ref('rankings/clt').push({
-    name, wa, score: pendingScore,
-    ts: Date.now()
-  });
-  db.ref('pending/' + pendingKey).remove();
-
+  if (!pendingKey) return;
+  push(ref(db, 'rankings/clt'), { name, wa, score: pendingScore, ts: Date.now() });
+  remove(ref(db, 'pending/' + pendingKey));
   pendingKey = null;
   document.getElementById('score-modal').classList.remove('active');
 }
 
-// Enter para confirmar
+// Enter no modal de score
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('score-modal').classList.contains('active')) {
-    confirmScore();
-  }
+  if (e.key === 'Enter' && document.getElementById('score-modal').classList.contains('active'))
+    window.confirmScore();
 });
 
-// ============================================================
-// RANKING: escuta atualizações em tempo real
-// ============================================================
-if (db) {
-  db.ref('rankings/clt').orderByChild('score').on('value', snap => {
-    const entries = [];
-    snap.forEach(c => entries.push({ key: c.key, ...c.val() }));
-    entries.sort((a, b) => b.score - a.score);
-    renderAll(entries);
-  });
-}
-
+// ===== RENDER =====
 function renderAll(entries) {
   const n = entries.length;
   document.getElementById('count-label').innerHTML =
     `<span class="live-dot"></span>${n} participante${n !== 1 ? 's' : ''}`;
-
   renderPodium(entries.slice(0, 3));
   renderTable(entries);
 }
 
 function renderPodium(top) {
   const pod = document.getElementById('podium');
-  if (top.length === 0) { pod.className = 'podium'; return; }
+  if (!top.length) { pod.className = 'podium'; return; }
   pod.className = 'podium visible';
-
-  const medals = ['🥇','🥈','🥉'];
-  const labels = ['1º lugar','2º lugar','3º lugar'];
-  const cls    = ['p1','p2','p3'];
-
-  // Ordem visual: 2º | 1º | 3º
-  const order  = top.length >= 3 ? [top[1], top[0], top[2]]
-               : top.length === 2 ? [top[1], top[0]]
-               : [top[0]];
-
+  const medals = ['🥇','🥈','🥉'], labels = ['1º lugar','2º lugar','3º lugar'], cls = ['p1','p2','p3'];
+  const order = top.length >= 3 ? [top[1],top[0],top[2]] : top.length === 2 ? [top[1],top[0]] : [top[0]];
   pod.innerHTML = order.map(e => {
     const i = top.indexOf(e);
-    return `
-    <div class="podium-card ${cls[i]}">
+    return `<div class="podium-card ${cls[i]}">
       <div class="podium-medal">${medals[i]}</div>
       <div class="podium-rank">${labels[i]}</div>
       <div class="podium-name">${e.name || 'Anônimo'}</div>
@@ -606,18 +652,17 @@ function renderPodium(top) {
 
 function renderTable(entries) {
   const list = document.getElementById('ranking-list');
-  if (entries.length === 0) {
+  if (!entries.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div>Nenhuma pontuação ainda. Seja o primeiro!</div>`;
     return;
   }
-  const posClass = i => i === 0 ? 'g' : i === 1 ? 's' : i === 2 ? 'b' : '';
-  const fmt = ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  list.innerHTML = entries.map((e, i) => `
+  const posClass = i => i===0?'g':i===1?'s':i===2?'b':'';
+  const fmt = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  list.innerHTML = entries.map((e,i) => `
     <div class="trow" id="row-${e.key}">
-      <div class="t-pos ${posClass(i)}">${i + 1}</div>
+      <div class="t-pos ${posClass(i)}">${i+1}</div>
       <div class="t-info">
-        <div class="t-name">${e.name || 'Anônimo'}</div>
+        <div class="t-name">${e.name||'Anônimo'}</div>
         <div class="t-time">${fmt(e.ts)}</div>
       </div>
       <div class="t-score">${e.score}</div>
