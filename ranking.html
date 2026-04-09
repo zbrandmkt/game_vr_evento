@@ -759,19 +759,21 @@ const queue = [];
 let modalOpen = false;
 
 // ===== RANKING PÚBLICO (sempre ativo) =====
-// Cache de entries para event delegation acessar
 let _allEntries = [];
 
 onValue(ref(db, 'rankings/clt'), snap => {
+  console.log('[onValue] Disparou. Filhos:', snap.size);
   const entries = [];
-  snap.forEach(c => entries.push({ key: c.key, ...c.val() }));
+  snap.forEach(c => {
+    const v = c.val();
+    console.log('[onValue] Entrada:', c.key, v);
+    entries.push({ key: c.key, name: v.name || 'Anônimo', score: Number(v.score) || 0, wa: v.wa || '', ts: v.ts || 0 });
+  });
   entries.sort((a, b) => b.score - a.score);
   _allEntries = entries;
-  try {
-    renderAll(entries);
-  } catch(e) {
-    console.error('[Render] Erro ao renderizar ranking:', e);
-  }
+  console.log('[onValue] Chamando renderAll com', entries.length, 'entradas');
+  renderAll(entries);
+  console.log('[onValue] renderAll concluído');
 });
 
 // ===== MODO PROMOTOR =====
