@@ -288,6 +288,95 @@
       border-bottom: 1px solid var(--gray-50);
       transition: background 0.15s;
     }
+    body.promoter-active .trow:not(.thead) {
+      grid-template-columns: 48px 1fr auto 32px;
+    }
+
+    /* ===== KEBAB MENU ===== */
+    .row-menu-wrap { position: relative; }
+    .kebab-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 4px 8px; border-radius: 6px;
+      color: var(--gray-300); font-size: 18px; line-height: 1;
+      transition: background .15s, color .15s;
+    }
+    .kebab-btn:hover { background: var(--gray-50); color: var(--dark); }
+    .kebab-dropdown {
+      display: none;
+      position: absolute; right: 0; top: 100%;
+      background: var(--white);
+      border: 1px solid var(--gray-100);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      min-width: 160px;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .kebab-dropdown.open { display: block; }
+    .kebab-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; background: none;
+      width: 100%; text-align: left;
+      transition: background .1s;
+    }
+    .kebab-item:hover { background: var(--gray-50); }
+    .kebab-item.danger { color: #DC2626; }
+    .kebab-item.danger:hover { background: #FEF2F2; }
+
+    /* ===== EDIT MODAL ===== */
+    #edit-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(10,10,10,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    #edit-modal.active { display: flex; }
+    .edit-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%; max-width: 380px;
+      margin: 16px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+    }
+    .edit-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px; font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .edit-sub { font-size: 13px; color: var(--gray-600); margin-bottom: 24px; }
+    .edit-row { margin-bottom: 14px; }
+    .edit-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-600); display: block; margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--gray-100); border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+      color: var(--dark); background: var(--gray-50);
+      outline: none; transition: border-color .2s;
+    }
+    .edit-input:focus { border-color: var(--orange); background: #fff; }
+    .edit-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .edit-save {
+      flex: 1; padding: 13px;
+      background: var(--orange); color: white;
+      border: none; border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    .edit-save:hover { background: var(--orange-dark); }
+    .edit-cancel {
+      flex: 1; padding: 13px;
+      background: var(--gray-50); color: var(--gray-600);
+      border: 1.5px solid var(--gray-100); border-radius: 10px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: background .2s;
+    }
+    .edit-cancel:hover { background: var(--gray-100); }
     .trow:last-child { border-bottom: none; }
     .trow.thead {
       background: var(--gray-50);
@@ -469,6 +558,26 @@
   </div>
 </div>
 
+<!-- Edit Modal (promoter only) -->
+<div id="edit-modal">
+  <div class="edit-card">
+    <div class="edit-title">Editar participante</div>
+    <div class="edit-sub" id="edit-sub">Pontuação: <strong id="edit-score-label"></strong> pts</div>
+    <div class="edit-row">
+      <label class="edit-label">Nome</label>
+      <input class="edit-input" id="edit-name" type="text" placeholder="Nome completo" autocomplete="off">
+    </div>
+    <div class="edit-row">
+      <label class="edit-label">WhatsApp</label>
+      <input class="edit-input" id="edit-wa" type="tel" placeholder="(11) 99999-9999" autocomplete="off">
+    </div>
+    <div class="edit-actions">
+      <button class="edit-cancel" onclick="closeEditModal()">Cancelar</button>
+      <button class="edit-save" onclick="saveEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- New Score Modal -->
 <div id="score-modal">
   <div class="modal-card">
@@ -530,7 +639,7 @@
 <script type="module">
 import { initializeApp }                              from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded,
-         onValue, remove }                            from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+         onValue, remove, update }                    from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword,
          onAuthStateChanged }                         from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
@@ -578,6 +687,7 @@ function activatePromoterMode() {
   document.getElementById('login-modal').classList.remove('active');
   document.getElementById('promoter-bar').classList.add('active');
   document.getElementById('promoter-tag').style.display = 'block';
+  document.body.classList.add('promoter-active');
 
   // Cada score novo vai para a fila
   onChildAdded(ref(db, 'pending'), snap => {
@@ -692,6 +802,15 @@ function renderTable(entries) {
   }
   const posClass = i => i===0?'g':i===1?'s':i===2?'b':'';
   const fmt = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const kebab = (key, name, wa, score) => isPromoter ? `
+    <div class="row-menu-wrap">
+      <button class="kebab-btn" onclick="toggleKebab('${key}', event)">⋯</button>
+      <div class="kebab-dropdown" id="kebab-${key}">
+        <button class="kebab-item" onclick="openEdit('${key}','${(name||'').replace(/'/g,"\\'")}','${(wa||'').replace(/'/g,"\\'")}',${score})">✏️ Editar</button>
+        <button class="kebab-item danger" onclick="deleteEntry('${key}')">🗑 Excluir</button>
+      </div>
+    </div>` : '';
+
   list.innerHTML = entries.map((e,i) => `
     <div class="trow" id="row-${e.key}">
       <div class="t-pos ${posClass(i)}">${i+1}</div>
@@ -700,8 +819,53 @@ function renderTable(entries) {
         <div class="t-time">${fmt(e.ts)}</div>
       </div>
       <div class="t-score">${e.score}</div>
+      ${kebab(e.key, e.name, e.wa, e.score)}
     </div>`).join('');
 }
+
+// ===== KEBAB MENU =====
+let activeKebab = null;
+window.toggleKebab = function(key, e) {
+  e.stopPropagation();
+  const menu = document.getElementById('kebab-' + key);
+  if (activeKebab && activeKebab !== menu) activeKebab.classList.remove('open');
+  menu.classList.toggle('open');
+  activeKebab = menu.classList.contains('open') ? menu : null;
+};
+document.addEventListener('click', () => {
+  if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
+});
+
+// ===== EDITAR =====
+let editKey = null;
+window.openEdit = function(key, name, wa, score) {
+  editKey = key;
+  document.getElementById('edit-name').value = name;
+  document.getElementById('edit-wa').value = wa;
+  document.getElementById('edit-score-label').textContent = score;
+  document.getElementById('edit-modal').classList.add('active');
+  if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
+  setTimeout(() => document.getElementById('edit-name').focus(), 200);
+};
+window.closeEditModal = function() {
+  document.getElementById('edit-modal').classList.remove('active');
+  editKey = null;
+};
+window.saveEdit = async function() {
+  if (!editKey) return;
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { document.getElementById('edit-name').focus(); return; }
+  const wa = document.getElementById('edit-wa').value.trim();
+  await update(ref(db, 'rankings/clt/' + editKey), { name, wa });
+  closeEditModal();
+};
+
+// ===== EXCLUIR =====
+window.deleteEntry = async function(key) {
+  if (!confirm('Excluir este participante do ranking?')) return;
+  if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
+  await remove(ref(db, 'rankings/clt/' + key));
+};
 </script>
 </body>
 </html>
