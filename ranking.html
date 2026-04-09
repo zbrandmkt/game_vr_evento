@@ -759,11 +759,19 @@ const queue = [];
 let modalOpen = false;
 
 // ===== RANKING PÚBLICO (sempre ativo) =====
+// Cache de entries para event delegation acessar
+let _allEntries = [];
+
 onValue(ref(db, 'rankings/clt'), snap => {
   const entries = [];
   snap.forEach(c => entries.push({ key: c.key, ...c.val() }));
   entries.sort((a, b) => b.score - a.score);
-  renderAll(entries);
+  _allEntries = entries;
+  try {
+    renderAll(entries);
+  } catch(e) {
+    console.error('[Render] Erro ao renderizar ranking:', e);
+  }
 });
 
 // ===== MODO PROMOTOR =====
@@ -923,13 +931,15 @@ function renderTable(entries) {
     return;
   }
   const posClass = i => i===0?'g':i===1?'s':i===2?'b':'';
-  const fmt = ts => new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const kebab = (key, name, wa, score) => isPromoter ? `
+  const fmt = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--:--';
+
+  // Kebab usa data-* attributes — sem escaping de strings em onclick
+  const kebab = key => isPromoter ? `
     <div class="row-menu-wrap">
-      <button class="kebab-btn" onclick="toggleKebab('${key}', event)">⋯</button>
+      <button class="kebab-btn" data-kebab="${key}">⋯</button>
       <div class="kebab-dropdown" id="kebab-${key}">
-        <button class="kebab-item" onclick="openEdit('${key}','${(name||'').replace(/'/g,"\\'")}','${(wa||'').replace(/'/g,"\\'")}',${score})">✏️ Editar</button>
-        <button class="kebab-item danger" onclick="deleteEntry('${key}')">🗑 Excluir</button>
+        <button class="kebab-item" data-edit="${key}">✏️ Editar</button>
+        <button class="kebab-item danger" data-delete="${key}">🗑 Excluir</button>
       </div>
     </div>` : '';
 
@@ -937,38 +947,67 @@ function renderTable(entries) {
     <div class="trow" id="row-${e.key}">
       <div class="t-pos ${posClass(i)}">${i+1}</div>
       <div class="t-info">
-        <div class="t-name">${e.name||'Anônimo'}</div>
+        <div class="t-name">${(e.name||'Anônimo').replace(/</g,'&lt;')}</div>
         <div class="t-time">${fmt(e.ts)}</div>
       </div>
-      <div class="t-score">${e.score}</div>
-      ${kebab(e.key, e.name, e.wa, e.score)}
+      <div class="t-score">${e.score||0}</div>
+      ${kebab(e.key)}
     </div>`).join('');
 }
 
-// ===== KEBAB MENU =====
+// ===== KEBAB — event delegation (sem onclick inline) =====
 let activeKebab = null;
-window.toggleKebab = function(key, e) {
-  e.stopPropagation();
-  const menu = document.getElementById('kebab-' + key);
-  if (activeKebab && activeKebab !== menu) activeKebab.classList.remove('open');
-  menu.classList.toggle('open');
-  activeKebab = menu.classList.contains('open') ? menu : null;
-};
+let editKey = null;
+
+document.getElementById('ranking-list').addEventListener('click', e => {
+  // Toggle kebab
+  const kbtn = e.target.closest('[data-kebab]');
+  if (kbtn) {
+    e.stopPropagation();
+    const key = kbtn.dataset.kebab;
+    const menu = document.getElementById('kebab-' + key);
+    if (activeKebab && activeKebab !== menu) activeKebab.classList.remove('open');
+    menu.classList.toggle('open');
+    activeKebab = menu.classList.contains('open') ? menu : null;
+    return;
+  }
+
+  // Editar
+  const ebtn = e.target.closest('[data-edit]');
+  if (ebtn) {
+    e.stopPropagation();
+    const key = ebtn.dataset.edit;
+    const entry = _allEntries.find(x => x.key === key);
+    if (!entry) return;
+    editKey = key;
+    document.getElementById('edit-name').value = entry.name || '';
+    document.getElementById('edit-wa').value = entry.wa || '';
+    document.getElementById('edit-score-label').textContent = entry.score || 0;
+    document.getElementById('edit-modal').classList.add('active');
+    if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
+    setTimeout(() => document.getElementById('edit-name').focus(), 200);
+    return;
+  }
+
+  // Excluir
+  const dbtn = e.target.closest('[data-delete]');
+  if (dbtn) {
+    e.stopPropagation();
+    const key = dbtn.dataset.delete;
+    if (!confirm('Excluir este participante do ranking?')) return;
+    if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
+    remove(ref(db, 'rankings/clt/' + key)).catch(err => {
+      alert('Erro ao excluir: ' + err.message);
+    });
+  }
+});
+
+// Fecha kebab ao clicar fora
 document.addEventListener('click', () => {
   if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
 });
 
-// ===== EDITAR =====
-let editKey = null;
-window.openEdit = function(key, name, wa, score) {
-  editKey = key;
-  document.getElementById('edit-name').value = name;
-  document.getElementById('edit-wa').value = wa;
-  document.getElementById('edit-score-label').textContent = score;
-  document.getElementById('edit-modal').classList.add('active');
-  if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
-  setTimeout(() => document.getElementById('edit-name').focus(), 200);
-};
+// ===== EDITAR MODAL =====
 window.closeEditModal = function() {
   document.getElementById('edit-modal').classList.remove('active');
   editKey = null;
@@ -978,15 +1017,12 @@ window.saveEdit = async function() {
   const name = document.getElementById('edit-name').value.trim();
   if (!name) { document.getElementById('edit-name').focus(); return; }
   const wa = document.getElementById('edit-wa').value.trim();
-  await update(ref(db, 'rankings/clt/' + editKey), { name, wa });
-  closeEditModal();
-};
-
-// ===== EXCLUIR =====
-window.deleteEntry = async function(key) {
-  if (!confirm('Excluir este participante do ranking?')) return;
-  if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
-  await remove(ref(db, 'rankings/clt/' + key));
+  try {
+    await update(ref(db, 'rankings/clt/' + editKey), { name, wa });
+    window.closeEditModal();
+  } catch(err) {
+    alert('Erro ao salvar: ' + err.message);
+  }
 };
 </script>
 </body>
