@@ -767,11 +767,13 @@ onValue(ref(db, 'rankings/clt'), snap => {
 });
 
 // ===== MODO PROMOTOR =====
+let promoterActivated = false;
 if (isPromoter) {
   onAuthStateChanged(auth, user => {
     if (user) {
-      activatePromoterMode();
+      if (!promoterActivated) activatePromoterMode();
     } else {
+      promoterActivated = false;
       document.getElementById('login-modal').classList.add('active');
       setTimeout(() => document.getElementById('login-email').focus(), 300);
     }
@@ -779,6 +781,7 @@ if (isPromoter) {
 }
 
 function activatePromoterMode() {
+  promoterActivated = true;
   document.getElementById('login-modal').classList.remove('active');
   document.getElementById('promoter-bar').classList.add('active');
   document.getElementById('promoter-tag').style.display = 'block';
@@ -786,9 +789,10 @@ function activatePromoterMode() {
 
   // Cada score novo vai para a fila
   onChildAdded(ref(db, 'pending'), snap => {
+    // Evita duplicatas na fila
+    if (queue.find(q => q.key === snap.key)) return;
     queue.push({ key: snap.key, score: snap.val().score || 0 });
     updateQueueBadge();
-    // Abre o modal só se não houver nenhum aberto
     if (!modalOpen) processNext();
   });
 }
@@ -837,23 +841,46 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 });
 
 // ===== CONFIRMAR / PULAR SCORE =====
-window.confirmScore = function() {
+window.confirmScore = async function() {
   const name = document.getElementById('inp-name').value.trim();
   if (!name) { document.getElementById('inp-name').focus(); return; }
-  saveEntry(name, document.getElementById('inp-wa').value.trim());
+  await saveEntry(name, document.getElementById('inp-wa').value.trim());
 };
 
-window.skipScore = function() { saveEntry('Anônimo', ''); };
+window.skipScore = async function() { await saveEntry('Anônimo', ''); };
 
-function saveEntry(name, wa) {
-  if (!queue.length) return;
-  const item = queue.shift(); // remove o primeiro da fila
-  push(ref(db, 'rankings/clt'), { name, wa, score: item.score, ts: Date.now() });
-  remove(ref(db, 'pending/' + item.key));
+async function saveEntry(name, wa) {
+  if (!queue.length) { console.warn('[Promotor] Fila vazia.'); return; }
+
+  // Feedback visual: desabilita botões durante o save
+  const btnSave = document.querySelector('#score-modal .btn-primary');
+  const btnSkip = document.querySelector('#score-modal .btn-secondary');
+  if (btnSave) { btnSave.disabled = true; btnSave.textContent = 'Salvando...'; }
+  if (btnSkip) btnSkip.disabled = true;
+
+  const item = queue.shift();
+
+  try {
+    await push(ref(db, 'rankings/clt'), { name, wa, score: item.score, ts: Date.now() });
+    await remove(ref(db, 'pending/' + item.key));
+    console.log('[Promotor] Score salvo com sucesso:', name, item.score);
+  } catch(e) {
+    console.error('[Promotor] Erro ao salvar:', e);
+    // Devolve o item para a fila e avisa
+    queue.unshift(item);
+    if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Salvar no Ranking'; }
+    if (btnSkip) btnSkip.disabled = false;
+    alert('Erro ao salvar. Verifique a conexão e tente novamente.\n\n' + e.message);
+    return;
+  }
+
+  // Restaura botões
+  if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Salvar no Ranking'; }
+  if (btnSkip) btnSkip.disabled = false;
+
   document.getElementById('score-modal').classList.remove('active');
   modalOpen = false;
   updateQueueBadge();
-  // Processa o próximo da fila após breve pausa
   if (queue.length) setTimeout(processNext, 600);
 }
 
