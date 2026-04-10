@@ -506,10 +506,26 @@
     /* ===== FOOTER ===== */
     .footer {
       text-align: center;
-      padding: 16px;
+      padding: 16px 16px 20px;
       font-size: 11px;
       color: var(--gray-300);
       letter-spacing: 0.5px;
+    }
+    .footer-dev {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--gray-300);
+      letter-spacing: 0.3px;
+    }
+    .footer-dev img {
+      height: 14px;
+      width: auto;
+      opacity: 0.55;
+      vertical-align: middle;
     }
 
     /* ===== LOGIN MODAL ===== */
@@ -666,7 +682,12 @@
 
 <canvas id="particles-canvas"></canvas>
 <div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
-<div class="footer">Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo</div>
+<div class="footer">
+  Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo
+  <div class="footer-dev">
+    Desenvolvido por <img src="assets/logo-laranja-zbrand.png" alt="ZBrand">
+  </div>
+</div>
 
 <!-- Particles -->
 <script>
