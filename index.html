@@ -89,13 +89,6 @@
     }
     .menu-footer span { color: #FF8B1A; }
 
-    /* ===== GAME SWITCH BUTTON ===== */
-    #game-switch-btn {
-      position: fixed; top: 10px; right: 10px; z-index: 10001;
-      background: rgba(255,139,26,0.9); border: none; border-radius: 8px;
-      color: #fff; padding: 8px 14px; font-size: 12px; font-weight: 700;
-      cursor: pointer; display: none;
-    }
     #back-menu-btn {
       position: fixed; top: 10px; left: 10px; z-index: 10001;
       background: rgba(255,255,255,0.15); border: none; border-radius: 8px;
@@ -111,11 +104,6 @@
       z-index: 10002; text-align: center; padding: 20px;
     }
     #intro-overlay.active { display: flex; }
-    /* Transparent mode: no background, used during Mundo audio */
-    #intro-overlay.transparent {
-      background: transparent;
-      pointer-events: none;
-    }
     #intro-countdown {
       font-size: 96px; font-weight: 900; color: #fff;
       text-shadow: 0 0 40px rgba(255,139,26,0.8), 0 0 80px rgba(255,139,26,0.4);
@@ -170,29 +158,10 @@
     }
     #hud-score.active { display: block; }
 
-    .hud-lives { color: #FF8B1A; font-size: 24px; }
     .hud-progress {
       font-family: 'Poppins', sans-serif;
       color: #FFB800; font-size: 16px; font-weight: 600;
     }
-
-    /* ===== GAME 1 LABELS - hidden ===== */
-    #game1-labels { display: none !important; }
-
-    /* ===== TOUCH ZONES (Game 1) ===== */
-    #touch-zones {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      display: none; z-index: 9996;
-    }
-    #touch-zones.active { display: flex; }
-    .touch-zone {
-      flex: 1; height: 100%;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.15s;
-    }
-    .touch-zone:active { opacity: 1; }
-    .touch-left:active { background: rgba(255,139,26,0.15); }
-    .touch-right:active { background: rgba(150,150,150,0.15); }
 
     /* ===== TOUCH ZONE (Game 2 - tap to hit) ===== */
     #touch-hit-zone {
@@ -242,13 +211,6 @@
     }
     #ranking-screen.active { display: flex; }
     .ranking-title { font-size: 24px; font-weight: 900; color: #FF8B1A; margin: 15px 0; }
-    .ranking-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-    .ranking-tab {
-      padding: 8px 20px; border-radius: 8px; border: 1px solid #333;
-      background: transparent; color: #888; cursor: pointer; font-size: 13px; font-weight: 600;
-    }
-    .ranking-tab.active { background: #FF8B1A; color: #fff; border-color: #FF8B1A; }
-
     .ranking-table { width: 100%; max-width: 500px; }
     .ranking-row {
       display: flex; padding: 10px 12px; border-bottom: 1px solid #1a1a1a;
@@ -269,52 +231,6 @@
       margin-top: 10px; padding: 10px 24px;
       background: #FF8B1A; border: none; border-radius: 8px;
       color: #fff; cursor: pointer; font-size: 14px; font-weight: 700;
-    }
-
-    /* ===== FEEDBACK FLASH ===== */
-    #feedback-flash {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: 9995; pointer-events: none; opacity: 0;
-      transition: opacity 0.15s;
-    }
-    #feedback-flash.correct { background: rgba(255,139,26,0.2); opacity: 1; }
-    #feedback-flash.wrong { background: rgba(255,50,50,0.3); opacity: 1; }
-
-    /* ===== WORD INDICATOR ===== */
-    #word-indicator {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      z-index: 9997; pointer-events: none; display: none;
-      text-align: center;
-    }
-    #word-indicator.active { display: block; }
-    #word-text {
-      font-size: 26px; font-weight: 900; color: #fff;
-      text-shadow: 0 0 20px rgba(255,139,26,0.6), 0 2px 10px rgba(0,0,0,0.8);
-      display: inline-block;
-    }
-
-    /* ===== WORD FLY ANIMATIONS ===== */
-    @keyframes wordFlyLeft {
-      0%   { transform: translateX(0) scale(1); opacity: 1; }
-      100% { transform: translateX(-160px) scale(0.6); opacity: 0; }
-    }
-    @keyframes wordFlyRight {
-      0%   { transform: translateX(0) scale(1); opacity: 1; }
-      100% { transform: translateX(160px) scale(0.6); opacity: 0; }
-    }
-    @keyframes wordFadeIn {
-      0%   { transform: translateX(0) scale(0.6); opacity: 0; }
-      100% { transform: translateX(0) scale(1); opacity: 1; }
-    }
-    .word-fly-left  { animation: wordFlyLeft  0.3s cubic-bezier(0.4,0,1,1) forwards; }
-    .word-fly-right { animation: wordFlyRight 0.3s cubic-bezier(0.4,0,1,1) forwards; }
-    .word-fade-in   { animation: wordFadeIn   0.25s ease-out forwards; }
-    #word-hint {
-      font-size: 11px; color: #666; margin-top: 8px;
-    }
-    #word-side-indicator {
-      position: fixed; top: 45%; z-index: 9997; pointer-events: none;
-      font-size: 40px; display: none; transition: opacity 0.2s;
     }
 
     /* ===== GAME 2 HIT FEEDBACK ===== */
@@ -349,9 +265,8 @@
     <div class="menu-title" style="display:none;">Presenca</div>
     <div class="menu-subtitle">Leve sua operacao para outro nivel</div>
 
-    <button class="menu-btn" onclick="startGame('mundo')">Mundo Presenca</button>
-    <button class="menu-btn" onclick="startGame('clt')">CLT e Ouro</button>
-    <button class="menu-btn secondary" onclick="showRanking()">Ranking</button>
+    <button class="menu-btn" onclick="startGame()">CLT e Ouro</button>
+    <button class="menu-btn secondary" onclick="showRanking(); mainMenu.classList.add('hidden');">Ranking</button>
 
     <div class="menu-footer">
       Workshop Corban360 &mdash; <span>16 e 17 de Abril, 2026</span><br>
@@ -359,8 +274,7 @@
     </div>
   </div>
 
-  <!-- GAME SWITCH / BACK BUTTONS -->
-  <button id="game-switch-btn" onclick="switchGame()">Trocar Jogo</button>
+  <!-- BACK BUTTON -->
   <button id="back-menu-btn" onclick="backToMenu()">Menu</button>
 
   <!-- INTRO OVERLAY -->
@@ -369,9 +283,6 @@
     <div id="intro-text"></div>
   </div>
 
-  <!-- INTRO AUDIO -->
-  <audio id="intro-audio" src="assets/intro_mundo.mp3" preload="auto"></audio>
-
   <!-- GAME HUD -->
   <div id="game-hud">
     <div id="hud-timer">01:00</div>
@@ -379,32 +290,11 @@
   </div>
   <div id="hud-score">0 pts</div>
 
-  <!-- GAME 1 SIDE LABELS -->
-  <div id="game1-labels">
-    <div class="label-side label-left">PRESENCA<br>Moderno</div>
-    <div class="label-side label-right">ANTIGO<br>Ultrapassado</div>
-  </div>
-
-  <!-- WORD INDICATOR (Game 1) -->
-  <div id="word-indicator">
-    <div id="word-text"></div>
-    <div id="word-hint">Incline a cabeca para esquerda ou direita</div>
-  </div>
-
-  <!-- TOUCH ZONES (Game 1 fallback) -->
-  <div id="touch-zones">
-    <div class="touch-zone touch-left" ontouchstart="sortWord('left')" onclick="sortWord('left')"></div>
-    <div class="touch-zone touch-right" ontouchstart="sortWord('right')" onclick="sortWord('right')"></div>
-  </div>
-
   <!-- TOUCH HIT ZONE (Game 2 fallback) -->
   <div id="touch-hit-zone" ontouchstart="registerHit()" onclick="registerHit()"></div>
 
   <!-- HIT FEEDBACK (Game 2) -->
   <div id="hit-feedback">CRACK!</div>
-
-  <!-- FEEDBACK FLASH -->
-  <div id="feedback-flash"></div>
 
   <!-- RESULT SCREEN -->
   <div id="result-screen">
@@ -421,18 +311,14 @@
     </div>
     <div style="margin-top:10px">
       <button class="result-btn secondary" onclick="playAgain()">Jogar Novamente</button>
-      <button class="result-btn secondary" onclick="switchGame()">Trocar Jogo</button>
+      <button class="result-btn secondary" onclick="backToMenu()">Menu</button>
     </div>
   </div>
 
   <!-- RANKING SCREEN -->
   <div id="ranking-screen">
     <img src="assets/logo-branco.png" alt="Presenca" style="width:120px;height:auto;">
-    <div class="ranking-title">Ranking</div>
-    <div class="ranking-tabs">
-      <button class="ranking-tab active" onclick="showRankingTab('mundo')">Mundo Presenca</button>
-      <button class="ranking-tab" onclick="showRankingTab('clt')">CLT e Ouro</button>
-    </div>
+    <div class="ranking-title">Ranking — CLT é Ouro</div>
     <div class="ranking-table" id="ranking-table">
       <div class="ranking-row header">
         <div class="ranking-pos">#</div>
@@ -492,12 +378,6 @@
   <!-- ===== SHARED ENVIRONMENT (Stars) ===== -->
   <a-entity id="shared-env">
     <a-entity id="star-field" star-field></a-entity>
-  </a-entity>
-
-  <!-- ===== GAME 1 WORLD: Mundo Presenca ===== -->
-  <a-entity id="game1-world" visible="false">
-    <!-- Ambient light for skybox visibility -->
-    <a-light type="ambient" color="#fff" intensity="0.8"></a-light>
   </a-entity>
 
   <!-- ===== GAME 2 WORLD: CLT e Ouro ===== -->
@@ -585,55 +465,12 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
     .catch(e => console.error('[Firebase] Erro:', e));
 }
 
-// ===== GAME DATA =====
-const WORDS = [
-  // Presenca words (side: "left")
-  { text: "Inovacao", side: "left", difficulty: 1 },
-  { text: "Tecnologia", side: "left", difficulty: 1 },
-  { text: "Digital", side: "left", difficulty: 1 },
-  { text: "Autonomia", side: "left", difficulty: 1 },
-  { text: "Agilidade", side: "left", difficulty: 1 },
-  { text: "Escalabilidade", side: "left", difficulty: 2 },
-  { text: "White Label", side: "left", difficulty: 2 },
-  { text: "Automacao", side: "left", difficulty: 2 },
-  { text: "Fintech", side: "left", difficulty: 2 },
-  { text: "Autocontratacao", side: "left", difficulty: 2 },
-  { text: "Plataforma", side: "left", difficulty: 2 },
-  { text: "Parceria", side: "left", difficulty: 2 },
-  { text: "IA Integrada", side: "left", difficulty: 3 },
-  { text: "Credito CLT", side: "left", difficulty: 3 },
-  { text: "FGTS Pay", side: "left", difficulty: 3 },
-  { text: "Alta Margem", side: "left", difficulty: 3 },
-  { text: "Funding Estruturado", side: "left", difficulty: 3 },
-  // Old/wrong words (side: "right")
-  { text: "Burocracia", side: "right", difficulty: 1 },
-  { text: "Papel", side: "right", difficulty: 1 },
-  { text: "Demora", side: "right", difficulty: 1 },
-  { text: "Manual", side: "right", difficulty: 1 },
-  { text: "Desatualizado", side: "right", difficulty: 1 },
-  { text: "Fila", side: "right", difficulty: 2 },
-  { text: "Telefone Fixo", side: "right", difficulty: 2 },
-  { text: "Fax", side: "right", difficulty: 2 },
-  { text: "Carimbo", side: "right", difficulty: 2 },
-  { text: "Analogico", side: "right", difficulty: 2 },
-  { text: "Lentidao", side: "right", difficulty: 2 },
-  { text: "Processo Fisico", side: "right", difficulty: 3 },
-  { text: "Retrabalho", side: "right", difficulty: 3 },
-  { text: "Planilha Excel", side: "right", difficulty: 3 },
-];
-
-const DIFFICULTY_POINTS = { 1: 100, 2: 200, 3: 300 };
-
 // ===== GAME STATE =====
-let currentGame = null; // 'mundo' or 'clt'
+let currentGame = 'clt';
 let gameActive = false;
 let gameTimer = null;
 let timeRemaining = 60;
 let score = 0;
-let lives = 3;
-let currentWordIndex = 0;
-let shuffledWords = [];
-let sortingCooldown = false;
 
 // Game 2 state
 let rockFragments = [];
@@ -657,25 +494,17 @@ const gameHud = $('game-hud');
 const hudScore = $('hud-score');
 const hudTimer = $('hud-timer');
 const hudCenter = $('hud-center-info');
-const game1Labels = $('game1-labels');
-const wordIndicator = $('word-indicator');
-const wordText = $('word-text');
-const wordHint = $('word-hint');
-const touchZones = $('touch-zones');
 const touchHitZone = $('touch-hit-zone');
-const feedbackFlash = $('feedback-flash');
 const hitFeedback = $('hit-feedback');
 const resultScreen = $('result-screen');
 const rankingScreen = $('ranking-screen');
-const gameSwitchBtn = $('game-switch-btn');
 const backMenuBtn = $('back-menu-btn');
 const vrEnterBtn = $('vr-enter-btn');
 
-const game1World = $('game1-world');
 const game2World = $('game2-world');
 
 // ===== MENU FUNCTIONS =====
-function startGame(type) {
+function startGame() {
   // Request iOS gyroscope permission FIRST (must be from user gesture)
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
@@ -687,41 +516,26 @@ function startGame(type) {
         }
       })
       .catch(err => console.warn('Gyro permission error:', err))
-      .finally(() => {
-        // Always proceed to game regardless of permission result
-        _doStartGame(type);
-      });
+      .finally(() => _doStartGame());
   } else {
-    // Android or desktop - no permission needed
-    _doStartGame(type);
+    _doStartGame();
   }
 }
 
-function _doStartGame(type) {
-  currentGame = type;
+function _doStartGame() {
+  currentGame = 'clt';
   mainMenu.classList.add('hidden');
-  gameSwitchBtn.style.display = 'block';
   backMenuBtn.style.display = 'block';
   vrEnterBtn.style.display = 'flex';
-
-  showIntro(type);
-}
-
-function switchGame() {
-  stopGame();
-  hideAllScreens();
-  currentGame = currentGame === 'mundo' ? 'clt' : 'mundo';
-  showIntro(currentGame);
+  showIntro();
 }
 
 function backToMenu() {
   stopGame();
   hideAllScreens();
   mainMenu.classList.remove('hidden');
-  gameSwitchBtn.style.display = 'none';
   backMenuBtn.style.display = 'none';
   vrEnterBtn.style.display = 'none';
-  game1World.setAttribute('visible', false);
   game2World.setAttribute('visible', false);
   document.getElementById('game-sky').setAttribute('visible', false);
   document.getElementById('shared-env').setAttribute('visible', true);
@@ -731,104 +545,45 @@ function hideAllScreens() {
   introOverlay.classList.remove('active');
   gameHud.classList.remove('active');
   hudScore.classList.remove('active');
-  game1Labels.classList.remove('active');
   $('picareta-fp').setAttribute('visible', false);
-  wordIndicator.classList.remove('active');
-  touchZones.classList.remove('active');
   touchHitZone.classList.remove('active');
   resultScreen.classList.remove('active');
   rankingScreen.classList.remove('active');
 }
 
 // ===== INTRO SEQUENCE =====
-
-// Subtitle segments for Mundo Presença audio (22s total)
-const MUNDO_SUBTITLES = [
-  { t: 0.0,  sub: 'Bem-vindo ao Mundo Presença...',                              count: '' },
-  { t: 2.2,  sub: 'Onde você se conecta com a inovação financeira!',             count: '' },
-  { t: 5.0,  sub: 'Vamos jogar?',                                                count: '' },
-  { t: 6.2,  sub: 'Coloque as palavras que representam a Presença\npara o lado correto,', count: '' },
-  { t: 10.0, sub: 'é só inclinar a sua cabeça em direção ao seu ombro,',         count: '' },
-  { t: 13.5, sub: 'faça isso com o maior número de palavras possíveis\nno menor tempo,', count: '' },
-  { t: 17.5, sub: 'começando em...',                                             count: '' },
-  { t: 19.2, sub: '',                                                            count: '3' },
-  { t: 20.0, sub: '',                                                            count: '2' },
-  { t: 20.8, sub: '',                                                            count: '1' },
-];
-
-function showIntro(type) {
+function showIntro() {
   hideAllScreens();
   introCountdown.textContent = '';
-
-  if (type === 'mundo') {
-    showMundoIntroWithAudio();
-  } else {
-    introOverlay.classList.add('active');
-    setTimeout(() => {
-      let count = 3;
-      introCountdown.textContent = count;
-      const countInterval = setInterval(() => {
-        count--;
-        if (count > 0) {
-          introCountdown.textContent = count;
-        } else {
-          clearInterval(countInterval);
-          introOverlay.classList.remove('active');
-          beginGame(type);
-        }
-      }, 1000);
+  introOverlay.classList.add('active');
+  setTimeout(() => {
+    let count = 3;
+    introCountdown.textContent = count;
+    const countInterval = setInterval(() => {
+      count--;
+      if (count > 0) {
+        introCountdown.textContent = count;
+      } else {
+        clearInterval(countInterval);
+        introOverlay.classList.remove('active');
+        beginGame();
+      }
     }, 1000);
-  }
-}
-
-function showMundoIntroWithAudio() {
-  // Show VR environment immediately so player is immersed during audio
-  game1World.setAttribute('visible', true);
-  game2World.setAttribute('visible', false);
-  document.getElementById('game-sky').setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('src', '#skybox-office');
-  document.getElementById('shared-env').setAttribute('visible', false);
-
-  const audio = $('intro-audio');
-  audio.currentTime = 0;
-
-  function onEnded() {
-    audio.removeEventListener('ended', onEnded);
-    introOverlay.classList.remove('active');
-    introOverlay.classList.remove('transparent');
-    beginGame('mundo');
-  }
-
-  audio.addEventListener('ended', onEnded);
-
-  audio.play().catch(() => {
-    // Fallback: start game after fixed delay if audio unavailable
-    audio.removeEventListener('ended', onEnded);
-    setTimeout(() => {
-      introOverlay.classList.remove('active');
-      introOverlay.classList.remove('transparent');
-      beginGame('mundo');
-    }, 3000);
-  });
+  }, 1000);
 }
 
 // ===== BEGIN GAME =====
-function beginGame(type) {
+function beginGame() {
   gameActive = true;
   score = 0;
   timeRemaining = 60;
-  lives = 3;
 
   // Show HUD
   gameHud.classList.add('active');
   hudScore.classList.add('active');
   updateHUD();
 
-  if (type === 'mundo') {
-    beginMundoPresenca();
-  } else {
-    beginCLTOuro();
-  }
+  beginCLTOuro();
 
   // Start timer
   gameTimer = setInterval(() => {
@@ -852,127 +607,12 @@ function updateHUD() {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   hudTimer.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-
-  if (currentGame === 'mundo') {
-    hudCenter.innerHTML = '<span class="hud-lives">' + '&#9829;'.repeat(lives) + '</span>';
-  } else {
-    const pct = Math.round((destroyedFragments / totalFragments) * 100);
-    hudCenter.innerHTML = '<span class="hud-progress">' + pct + '% revelado</span>';
-  }
-}
-
-// ===== GAME 1: MUNDO PRESENCA =====
-function beginMundoPresenca() {
-  game1World.setAttribute('visible', true);
-  game2World.setAttribute('visible', false);
-  // Show skybox for game 1, hide stars
-  document.getElementById('game-sky').setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('src', '#skybox-office');
-  document.getElementById('shared-env').setAttribute('visible', false);
-  game1Labels.classList.add('active');
-  wordIndicator.classList.add('active');
-  touchZones.classList.add('active');
-
-  // Shuffle words
-  shuffledWords = [...WORDS].sort(() => Math.random() - 0.5);
-  currentWordIndex = 0;
-  sortingCooldown = false;
-
-  showNextWord();
-  startHeadDirectionDetection();
-}
-
-function showNextWord() {
-  if (!gameActive) return;
-  if (currentWordIndex >= shuffledWords.length) {
-    // Reshuffle
-    shuffledWords = [...WORDS].sort(() => Math.random() - 0.5);
-    currentWordIndex = 0;
-  }
-  const word = shuffledWords[currentWordIndex];
-  wordText.textContent = word.text;
-  wordText.style.borderColor = 'rgba(255,139,26,0.3)';
-  wordHint.textContent = 'Olhe para esquerda ou direita';
-  // Fade-in animation
-  wordText.classList.remove('word-fade-in');
-  void wordText.offsetWidth;
-  wordText.classList.add('word-fade-in');
-  sortingCooldown = false;
-}
-
-function sortWord(direction) {
-  if (!gameActive || sortingCooldown) return;
-  sortingCooldown = true;
-
-  const word = shuffledWords[currentWordIndex];
-  const correct = (direction === word.side);
-
-  if (correct) {
-    score += DIFFICULTY_POINTS[word.difficulty];
-    flashFeedback('correct');
-  } else {
-    lives--;
-    flashFeedback('wrong');
-    if (lives <= 0) {
-      // Fly out then end
-      flyWord(direction, () => endGame());
-      updateHUD();
-      return;
-    }
-  }
-
-  updateHUD();
-  currentWordIndex++;
-  flyWord(direction, () => showNextWord());
-}
-
-function flyWord(direction, callback) {
-  const flyClass = direction === 'left' ? 'word-fly-left' : 'word-fly-right';
-  wordText.classList.remove('word-fly-left', 'word-fly-right', 'word-fade-in');
-  // Force reflow so animation restarts cleanly
-  void wordText.offsetWidth;
-  wordText.classList.add(flyClass);
-  setTimeout(() => {
-    wordText.classList.remove(flyClass);
-    callback();
-  }, 310);
-}
-
-function flashFeedback(type) {
-  feedbackFlash.className = type;
-  setTimeout(() => { feedbackFlash.className = ''; }, 250);
-}
-
-// Head direction detection for Game 1
-let headDetectionRAF = null;
-function startHeadDirectionDetection() {
-  const camera = document.getElementById('main-camera');
-  const THRESHOLD = 0.4; // ~23 degrees in radians - tilt head (ear to shoulder)
-
-  function checkDirection() {
-    if (!gameActive || currentGame !== 'mundo') return;
-
-    const rotation = camera.object3D.rotation;
-    // Z-rotation = tilt (inclinar cabeca, orelha no ombro)
-    // Positive Z = tilt left (left ear down), Negative Z = tilt right (right ear down)
-    const tilt = rotation.z;
-
-    if (!sortingCooldown) {
-      if (tilt > THRESHOLD) {
-        sortWord('left');
-      } else if (tilt < -THRESHOLD) {
-        sortWord('right');
-      }
-    }
-
-    headDetectionRAF = requestAnimationFrame(checkDirection);
-  }
-  headDetectionRAF = requestAnimationFrame(checkDirection);
+  const pct = Math.round((destroyedFragments / totalFragments) * 100);
+  hudCenter.innerHTML = '<span class="hud-progress">' + pct + '% revelado</span>';
 }
 
 // ===== GAME 2: CLT E OURO =====
 function beginCLTOuro() {
-  game1World.setAttribute('visible', false);
   game2World.setAttribute('visible', true);
   document.getElementById('game-sky').setAttribute('visible', true);
   document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
@@ -1131,32 +771,21 @@ function endGame() {
   stopGame();
   hideAllScreens();
 
-  if (headDetectionRAF) { cancelAnimationFrame(headDetectionRAF); headDetectionRAF = null; }
   if (nodDetectionRAF) { cancelAnimationFrame(nodDetectionRAF); nodDetectionRAF = null; }
 
-  const timeUsed = 60 - timeRemaining;
-
-  if (currentGame === 'mundo') {
-    $('result-title').textContent = 'Mundo Presenca';
+  const pct = Math.round((destroyedFragments / totalFragments) * 100);
+  if (completionTime !== null) {
+    $('result-title').textContent = 'CLT Libertado!';
     $('result-score-value').textContent = score + ' pts';
-    $('result-detail').textContent = `Tempo: ${timeUsed}s | Vidas restantes: ${lives}`;
-    lastResult = { game: 'mundo', score, time: timeUsed };
-    pushScoreToPending('mundo', score, timeUsed);
+    $('result-detail').textContent = `Tempo: ${completionTime}s | 100% revelado`;
+    lastResult = { game: 'clt', score, time: completionTime };
+    pushScoreToPending('clt', score, completionTime);
   } else {
-    const pct = Math.round((destroyedFragments / totalFragments) * 100);
-    if (completionTime !== null) {
-      $('result-title').textContent = 'CLT Libertado!';
-      $('result-score-value').textContent = score + ' pts';
-      $('result-detail').textContent = `Tempo: ${completionTime}s | 100% revelado`;
-      lastResult = { game: 'clt', score, time: completionTime };
-      pushScoreToPending('clt', score, completionTime);
-    } else {
-      $('result-title').textContent = 'Tempo Esgotado!';
-      $('result-score-value').textContent = score + ' pts';
-      $('result-detail').textContent = `${pct}% revelado em 60s`;
-      lastResult = { game: 'clt', score, time: 60 };
-      pushScoreToPending('clt', score, 60);
-    }
+    $('result-title').textContent = 'Tempo Esgotado!';
+    $('result-score-value').textContent = score + ' pts';
+    $('result-detail').textContent = `${pct}% revelado em 60s`;
+    lastResult = { game: 'clt', score, time: 60 };
+    pushScoreToPending('clt', score, 60);
   }
 
   resultScreen.classList.add('active');
@@ -1166,7 +795,7 @@ function endGame() {
 
 function playAgain() {
   hideAllScreens();
-  showIntro(currentGame);
+  showIntro();
 }
 
 // ===== RANKING SYSTEM =====
@@ -1203,27 +832,17 @@ function saveAndShowRanking() {
   });
 
   resultScreen.classList.remove('active');
-  showRanking(lastResult.game);
+  showRanking();
 }
 
-let currentRankingTab = 'mundo';
-function showRanking(tab) {
+function showRanking() {
   hideAllScreens();
-  currentRankingTab = tab || 'mundo';
   rankingScreen.classList.add('active');
-  renderRankingTab(currentRankingTab);
+  renderRankingTab();
 }
 
-function showRankingTab(tab) {
-  currentRankingTab = tab;
-  // Update tab styles
-  document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  renderRankingTab(tab);
-}
-
-function renderRankingTab(tab) {
-  const ranking = getRanking(tab);
+function renderRankingTab() {
+  const ranking = getRanking('clt');
   const table = $('ranking-table');
 
   // Keep header, remove data rows
@@ -1253,23 +872,14 @@ function renderRankingTab(tab) {
 
 function closeRanking() {
   rankingScreen.classList.remove('active');
-  if (gameActive || currentGame) {
-    // Stay in game context
-  } else {
-    mainMenu.classList.remove('hidden');
-  }
+  mainMenu.classList.remove('hidden');
 }
 
 function exportCSV() {
-  const games = ['mundo', 'clt'];
   let csv = 'Jogo,Posicao,Nome,Telefone,Pontuacao,Tempo(s),Data\n';
-
-  games.forEach(game => {
-    const ranking = getRanking(game);
-    ranking.forEach((entry, i) => {
-      const gameName = game === 'mundo' ? 'Mundo Presenca' : 'CLT e Ouro';
-      csv += `${gameName},${i + 1},"${entry.name}","${entry.phone || ''}",${entry.score},${entry.time},"${entry.date}"\n`;
-    });
+  const ranking = getRanking('clt');
+  ranking.forEach((entry, i) => {
+    csv += `CLT e Ouro,${i + 1},"${entry.name}","${entry.phone || ''}",${entry.score},${entry.time},"${entry.date}"\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

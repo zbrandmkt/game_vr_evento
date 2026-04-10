@@ -588,7 +588,8 @@
 <!-- Promoter Bar -->
 <div id="promoter-bar">
   <div class="pbar-dot"></div>
-  <span class="pbar-text">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
+  <span class="pbar-text" style="flex:1;">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
+  <button onclick="clearPending()" style="background:rgba(0,0,0,0.2);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Limpar fila de pendentes acumulados">Limpar fila</button>
 </div>
 
 <!-- Login Modal (promoter only) -->
@@ -754,7 +755,8 @@
 <script type="module">
 import { initializeApp }                              from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded,
-         onValue, remove, update }                    from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+         onValue, remove, update, query,
+         orderByChild, startAt }                      from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword,
          onAuthStateChanged }                         from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
@@ -813,14 +815,17 @@ function activatePromoterMode() {
   document.getElementById('promoter-tag').style.display = 'block';
   document.body.classList.add('promoter-active');
 
-  // Cada score novo vai para a fila
-  onChildAdded(ref(db, 'pending'), snap => {
-    // Evita duplicatas na fila
-    if (queue.find(q => q.key === snap.key)) return;
-    queue.push({ key: snap.key, score: snap.val().score || 0 });
-    updateQueueBadge();
-    if (!modalOpen) processNext();
-  });
+  // Escuta apenas entradas criadas A PARTIR DE AGORA — ignora pendentes antigos
+  const startDate = new Date().toISOString();
+  onChildAdded(
+    query(ref(db, 'pending'), orderByChild('date'), startAt(startDate)),
+    snap => {
+      if (queue.find(q => q.key === snap.key)) return;
+      queue.push({ key: snap.key, score: snap.val().score || 0 });
+      updateQueueBadge();
+      if (!modalOpen) processNext();
+    }
+  );
 }
 
 function processNext() {
@@ -846,6 +851,21 @@ function updateQueueBadge() {
     ? `Modo Promotor ativo — ${queue.length} pontuação(ões) na fila`
     : 'Modo Promotor ativo — aguardando próxima pontuação...';
 }
+
+// ===== LIMPAR FILA PENDENTE =====
+window.clearPending = async function() {
+  if (!confirm('Apagar todos os registros pendentes sem salvar no ranking?')) return;
+  try {
+    await remove(ref(db, 'pending'));
+    queue.length = 0;
+    modalOpen = false;
+    document.getElementById('score-modal').classList.remove('active');
+    updateQueueBadge();
+    console.log('[Promotor] Fila pending limpa.');
+  } catch(e) {
+    alert('Erro ao limpar: ' + e.message);
+  }
+};
 
 // ===== LOGIN =====
 window.doLogin = async function() {
