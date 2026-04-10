@@ -271,14 +271,17 @@
 
   <!-- MAIN MENU -->
   <div id="main-menu">
+    <img src="assets/Logo_ Branco.PNG.png" alt="Brasao Presenca" style="width:72px;height:auto;margin-bottom:10px;filter:drop-shadow(0 0 16px rgba(255,139,26,0.45));">
     <img class="menu-logo" src="assets/logo-branco.png" alt="Presenca" style="width:240px;height:auto;margin-bottom:12px;">
     <div class="menu-subtitle">Leve sua operacao para outro nivel</div>
 
     <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
 
     <div class="menu-footer">
-      Workshop Corban360 &mdash; <span>16 e 17 de Abril, 2026</span><br>
-      Sao Paulo Expo
+      Workshop Corban360 &mdash; <span>16 e 17 de Abril, 2026</span>
+      <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;font-size:10px;color:rgba(255,139,26,0.7);letter-spacing:0.3px;">
+        Desenvolvido por <img src="assets/logo-laranja-zbrand.png" alt="ZBrand" style="height:13px;width:auto;vertical-align:middle;opacity:0.85;">
+      </div>
     </div>
   </div>
 
@@ -396,8 +399,7 @@
     <a-light type="point" color="#FF4400" intensity="0.3" position="-3 0.1 -4" distance="8"></a-light>
     <a-light type="point" color="#FF4400" intensity="0.3" position="3 0.1 -2" distance="8"></a-light>
 
-    <!-- Presenca logo on wall -->
-    <a-text value="PRESENCA" position="0 5.2 -5.8" align="center" color="#FF8B1A" width="6" font="mozillavr" opacity="0.4"></a-text>
+    <!-- Presenca logo on wall (removed text branding) -->
 
     <!-- Hexagonal grid wireframe background -->
     <a-entity id="hex-grid" position="0 3 -5.5">
