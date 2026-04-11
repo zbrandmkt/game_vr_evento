@@ -99,6 +99,20 @@
       transform: scale(1.06);
       box-shadow: 0 12px 48px rgba(255,139,26,0.7), 0 2px 8px rgba(0,0,0,0.4);
     }
+    .menu-btn.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,139,26,0.4);
+      font-size: 16px;
+      padding: 16px 24px;
+    }
+    .menu-btn.secondary:hover, .menu-btn.secondary:active {
+      background: rgba(255,139,26,0.15);
+    }
+    .menu-game-label {
+      font-size: 10px; color: rgba(255,255,255,0.35);
+      letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 10px; margin-top: 8px;
+    }
 
     .menu-footer {
       position: absolute; bottom: 28px; text-align: center;
@@ -320,7 +334,9 @@
     <img class="menu-logo" src="assets/logo-branco.png" alt="Presenca" style="width:240px;height:auto;margin-bottom:12px;">
     <div class="menu-subtitle">O futuro do consignado é com Presença</div>
 
-    <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
+    <div class="menu-game-label">Escolha o jogo</div>
+    <button class="menu-btn" onclick="startGame('clt')">⛏️ Quebra as Barreiras</button>
+    <button class="menu-btn secondary" onclick="startGame('geo')">💎 Geode Presença</button>
 
     <div class="menu-footer">
       Workshop Corban360 — 16 e 17 de Abril, 2026
@@ -460,6 +476,13 @@
     <a-entity id="rock-container"></a-entity>
   </a-entity>
 
+  <!-- ===== GAME 3 WORLD: Geode Presença ===== -->
+  <a-entity id="game3-world" visible="false">
+    <a-light type="ambient" id="geo-ambient" color="#FF8B1A" intensity="0.35"></a-light>
+    <a-light type="point" color="#FF6600" intensity="1.2" position="0 0 0" distance="7"></a-light>
+    <a-entity id="geode-container"></a-entity>
+  </a-entity>
+
   <!-- Global ambient -->
   <a-light type="ambient" color="#222" intensity="0.3"></a-light>
 </a-scene>
@@ -597,6 +620,12 @@ let lastResult = { game: null, score: 0, time: 0 };
 // Shuffled word index pool — ensures variety across respawns
 let wordPool = [];
 
+// ===== GEO GAME STATE =====
+let geoPanels = [];
+let geoGazingRAF = null;
+let geoGazeTarget = null;
+let geoWordsRevealed = 0;
+
 // ===== DOM REFS =====
 const $ = id => document.getElementById(id);
 const mainMenu      = $('main-menu');
@@ -645,12 +674,12 @@ function requestGyroAndEnter() {
 }
 
 // ===== MENU FUNCTIONS =====
-function startGame() {
+function startGame(type) {
+  currentGame = type || 'clt';
   _doStartGame();
 }
 
 function _doStartGame() {
-  currentGame = 'clt';
   mainMenu.classList.add('hidden');
   backMenuBtn.style.display = 'block';
   vrEnterBtn.style.display = 'flex';
@@ -665,6 +694,7 @@ function backToMenu() {
   vrEnterBtn.style.display = 'none';
   // Mantém caverna visível no menu — ambiente sempre ativo
   game2World.setAttribute('visible', true);
+  document.getElementById('game3-world').setAttribute('visible', false);
   document.getElementById('game-sky').setAttribute('visible', true);
   document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
   document.getElementById('shared-env').setAttribute('visible', false);
@@ -681,6 +711,8 @@ function hideAllScreens() {
   touchHitZone.classList.remove('active');
   resultScreen.classList.remove('active');
   rankingScreen.classList.remove('active');
+  document.querySelectorAll('a-scene [data-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
+  document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
 }
 
 // ===== INTRO: narração + legenda word-by-word + countdown =====
@@ -746,7 +778,8 @@ function beginGame() {
   gameHud.classList.add('active');
   hudScore.classList.add('active');
   updateHUD();
-  beginCLTOuro();
+  if (currentGame === 'geo') beginGeoGame();
+  else beginCLTOuro();
 
   gameTimer = setInterval(() => {
     timeRemaining--;
@@ -757,8 +790,9 @@ function beginGame() {
 
 function stopGame() {
   gameActive = false;
-  if (gameTimer)  { clearInterval(gameTimer); gameTimer = null; }
-  if (gazingRAF)  { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
+  if (gameTimer)    { clearInterval(gameTimer); gameTimer = null; }
+  if (gazingRAF)    { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
+  if (geoGazingRAF) { cancelAnimationFrame(geoGazingRAF); geoGazingRAF = null; }
 }
 
 // ===== HUD UPDATE =====
@@ -767,7 +801,11 @@ function updateHUD() {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   hudTimer.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
-  hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed} reveladas</span>`;
+  if (currentGame === 'geo') {
+    hudCenter.innerHTML = `<span class="hud-progress">${geoWordsRevealed} reveladas</span>`;
+  } else {
+    hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed} reveladas</span>`;
+  }
 }
 
 // ===== WEB AUDIO =====
@@ -943,13 +981,13 @@ function registerHit(rock) {
 
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
-  const target = gazeTarget; // only hit what player is aiming at — no random fallback
+  const target = currentGame === 'geo' ? geoGazeTarget : gazeTarget;
   if (!target) return;
-
   hitCooldown = true;
-  swingPickaxe(); // swing animation fires immediately
+  swingPickaxe();
   setTimeout(() => {
-    registerHit(target); // hit registers mid-swing (250ms delay for feel)
+    if (currentGame === 'geo') registerGeoHit(target);
+    else registerHit(target);
   }, 250);
   setTimeout(() => { hitCooldown = false; }, 500);
 }
@@ -1041,6 +1079,298 @@ function respawnSlot(slotIdx) {
   rocks.push(rock);
 }
 
+// ===== GAME 3: GEODE PRESENÇA =====
+
+function createCosmosSkyTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048; canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  // Deep space gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 1024);
+  grad.addColorStop(0,   '#0A0200');
+  grad.addColorStop(0.3, '#1A0800');
+  grad.addColorStop(0.6, '#2A1000');
+  grad.addColorStop(1,   '#050100');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 2048, 1024);
+  // Stars
+  for (let i = 0; i < 700; i++) {
+    const x = Math.random() * 2048, y = Math.random() * 1024;
+    const r = Math.random() * 1.2 + 0.3;
+    const alpha = 0.5 + Math.random() * 0.5;
+    ctx.fillStyle = `rgba(255,${200 + Math.floor(Math.random()*55)},${150 + Math.floor(Math.random()*80)},${alpha})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  }
+  // Subtle orange nebula cloud
+  const neb = ctx.createRadialGradient(1024, 400, 0, 1024, 400, 600);
+  neb.addColorStop(0,   'rgba(255,100,0,0.12)');
+  neb.addColorStop(0.5, 'rgba(255,60,0,0.06)');
+  neb.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = neb;
+  ctx.fillRect(0, 0, 2048, 1024);
+  return canvas.toDataURL();
+}
+
+function beginGeoGame() {
+  const game3 = document.getElementById('game3-world');
+  game3.setAttribute('visible', true);
+  game2World.setAttribute('visible', false);
+
+  // Cosmos sky
+  const skyEl = document.getElementById('game-sky');
+  skyEl.setAttribute('visible', true);
+  skyEl.setAttribute('src', ''); // clear cave skybox
+  skyEl.setAttribute('color', '#0A0200'); // will be updated as panels break
+
+  // Show stars
+  document.getElementById('shared-env').setAttribute('visible', true);
+
+  // Show pickaxe
+  const picareta = $('picareta-fp');
+  picareta.setAttribute('visible', true);
+  picareta.setAttribute('position', PICK_REST_POS);
+  picareta.setAttribute('rotation', PICK_REST_ROT);
+
+  touchHitZone.classList.add('active');
+  crosshairEl.classList.add('active');
+
+  geoWordsRevealed = 0;
+  spawnGeode();
+  startGeoGazeLoop();
+  updateHUD();
+}
+
+function spawnGeode() {
+  document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
+  const container = document.getElementById('geode-container');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  geoPanels = [];
+
+  // IcosahedronGeometry detail=0 → 20 triangular faces
+  const sphereGeo = new THREE.IcosahedronGeometry(5.0, 0);
+  const nonIdx = sphereGeo.toNonIndexed();
+  const pos = nonIdx.attributes.position;
+  const numFaces = pos.count / 3;
+
+  // Decide which faces get words (those above floor, randomly assigned)
+  const wordPool2 = ROCK_WORDS.map((w, i) => i);
+  for (let i = wordPool2.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [wordPool2[i], wordPool2[j]] = [wordPool2[j], wordPool2[i]];
+  }
+
+  let wordIdx = 0;
+
+  for (let i = 0; i < numFaces; i++) {
+    const verts3 = [];
+    for (let j = 0; j < 3; j++) {
+      verts3.push(new THREE.Vector3(pos.getX(i*3+j), pos.getY(i*3+j), pos.getZ(i*3+j)));
+    }
+    const centroid = new THREE.Vector3(
+      (verts3[0].x + verts3[1].x + verts3[2].x) / 3,
+      (verts3[0].y + verts3[1].y + verts3[2].y) / 3,
+      (verts3[0].z + verts3[1].z + verts3[2].z) / 3
+    );
+
+    // Skip floor panels (below player feet level)
+    if (centroid.y < -3.0) continue;
+
+    // Assign word to first 9 valid panels
+    const hasWord = wordIdx < ROCK_WORDS.length;
+    const word = hasWord ? ROCK_WORDS[wordPool2[wordIdx]] : null;
+    if (hasWord) wordIdx++;
+
+    // Triangle geometry (BackSide = player sees inside face)
+    const triGeo = new THREE.BufferGeometry();
+    const v = new Float32Array([
+      verts3[0].x, verts3[0].y, verts3[0].z,
+      verts3[1].x, verts3[1].y, verts3[1].z,
+      verts3[2].x, verts3[2].y, verts3[2].z,
+    ]);
+    triGeo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+    triGeo.computeVertexNormals();
+
+    // Rock color: word panels slightly golden tint
+    const rockColor = hasWord ? 0x7A6030 : 0x6B5842;
+    const mat = new THREE.MeshStandardMaterial({
+      color: rockColor,
+      roughness: 0.92, metalness: hasWord ? 0.15 : 0.04,
+      flatShading: true, side: THREE.BackSide
+    });
+    const mesh = new THREE.Mesh(triGeo, mat);
+
+    // Geodesic wireframe edges (orange glow for word panels)
+    const edges = new THREE.EdgesGeometry(triGeo);
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: hasWord ? 0xFF8B1A : 0x3A2A12,
+      transparent: true, opacity: hasWord ? 0.55 : 0.25
+    });
+    mesh.add(new THREE.LineSegments(edges, edgeMat));
+
+    const el = document.createElement('a-entity');
+    el.setObject3D('panel-mesh', mesh);
+    container.appendChild(el);
+
+    geoPanels.push({
+      el, mesh, centroid,
+      word, hasWord,
+      hitsLeft: hasWord ? (word.hits) : 1,
+      alive: true,
+      panelIdx: geoPanels.length
+    });
+  }
+}
+
+function startGeoGazeLoop() {
+  const camera = document.getElementById('main-camera');
+  const GEO_GAZE_ANGLE = 0.30;
+
+  function loop() {
+    if (!gameActive || currentGame !== 'geo') return;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
+    const camPos = new THREE.Vector3();
+    camera.object3D.getWorldPosition(camPos);
+
+    let best = null, bestAngle = GEO_GAZE_ANGLE;
+    geoPanels.forEach(panel => {
+      if (!panel.alive) return;
+      const toPanel = new THREE.Vector3(
+        panel.centroid.x - camPos.x,
+        panel.centroid.y - camPos.y,
+        panel.centroid.z - camPos.z
+      ).normalize();
+      const angle = dir.angleTo(toPanel);
+      if (angle < bestAngle) { bestAngle = angle; best = panel; }
+    });
+
+    geoGazeTarget = best;
+    if (best) crosshairEl.classList.add('on-target');
+    else      crosshairEl.classList.remove('on-target');
+
+    geoGazingRAF = requestAnimationFrame(loop);
+  }
+  geoGazingRAF = requestAnimationFrame(loop);
+}
+
+function registerGeoHit(panel) {
+  if (!gameActive || !panel || !panel.alive) return;
+  panel.hitsLeft--;
+
+  if (panel.hitsLeft <= 0) {
+    shatterPanel(panel);
+  } else {
+    playHitSound();
+    // Shake the panel visually
+    const orig = panel.mesh.position.clone();
+    let n = 0;
+    const iv = setInterval(() => {
+      panel.mesh.position.set(
+        orig.x + (Math.random()-0.5)*0.08,
+        orig.y + (Math.random()-0.5)*0.05,
+        orig.z + (Math.random()-0.5)*0.08
+      );
+      if (++n >= 6) { clearInterval(iv); panel.mesh.position.copy(orig); }
+    }, 25);
+    showHitFeedback();
+  }
+}
+
+function shatterPanel(panel) {
+  panel.alive = false;
+  const c = panel.centroid;
+  const scene = document.querySelector('a-scene');
+
+  // Direction from panel centroid TOWARD player (0,1.6,0)
+  const toPlayer = new THREE.Vector3(-c.x, 1.6 - c.y, -c.z).normalize();
+
+  // Golden particles fly TOWARD player
+  for (let i = 0; i < 10; i++) {
+    const sz = (0.04 + Math.random() * 0.07).toFixed(3);
+    const spread = 0.6;
+    const dist = 2.5 + Math.random() * 1.5;
+    const fx = (c.x + toPlayer.x * dist + (Math.random()-0.5)*spread).toFixed(2);
+    const fy = (c.y + toPlayer.y * dist + (Math.random()-0.5)*spread).toFixed(2);
+    const fz = (c.z + toPlayer.z * dist + (Math.random()-0.5)*spread).toFixed(2);
+
+    const frag = document.createElement('a-box');
+    frag.setAttribute('width', sz); frag.setAttribute('height', sz); frag.setAttribute('depth', sz);
+    frag.setAttribute('position', `${c.x.toFixed(2)} ${c.y.toFixed(2)} ${c.z.toFixed(2)}`);
+    frag.setAttribute('color', '#FFB800');
+    frag.setAttribute('material', 'roughness: 0.3; metalness: 0.7; emissive: #FF8800; emissiveIntensity: 0.4');
+    scene.appendChild(frag);
+
+    setTimeout(() => {
+      frag.setAttribute('animation__fly',    `property: position; to: ${fx} ${fy} ${fz}; dur: 480; easing: easeOutQuad`);
+      frag.setAttribute('animation__shrink', `property: scale; to: 0.001 0.001 0.001; dur: 420; delay: 60; easing: easeInQuad`);
+    }, 0);
+    setTimeout(() => { if (frag.parentNode) frag.parentNode.removeChild(frag); }, 620);
+  }
+
+  // Remove panel mesh (creates natural hole showing skybox)
+  panel.el.removeObject3D('panel-mesh');
+  if (panel.el.parentNode) panel.el.parentNode.removeChild(panel.el);
+
+  playShatterSound();
+
+  // Score
+  score += panel.hasWord ? (panel.word.pts) : 50;
+  if (timeRemaining > 20) score += 50;
+  else if (timeRemaining > 10) score += 25;
+
+  if (panel.hasWord) {
+    geoWordsRevealed++;
+    revealGeoWord(panel);
+    playWhooshSound();
+  }
+
+  updateGeoLighting();
+  updateHUD();
+  showHitFeedback();
+}
+
+function revealGeoWord(panel) {
+  const c = panel.centroid;
+  // Word floats slightly inward from panel position (toward center)
+  const inward = new THREE.Vector3(-c.x, -c.y, -c.z).normalize().multiplyScalar(0.8);
+  const wx = (c.x + inward.x).toFixed(2);
+  const wy = (c.y + inward.y).toFixed(2);
+  const wz = (c.z + inward.z).toFixed(2);
+
+  // Rotation: face toward center (0,0,0)
+  const angle = Math.atan2(c.x, c.z) * 180 / Math.PI;
+
+  const txt = document.createElement('a-text');
+  txt.setAttribute('value', panel.word.word);
+  txt.setAttribute('position', `${wx} ${wy} ${wz}`);
+  txt.setAttribute('rotation', `0 ${angle} 0`);
+  txt.setAttribute('scale', '0.01 0.01 0.01');
+  txt.setAttribute('align', 'center');
+  txt.setAttribute('color', '#FFD700');
+  txt.setAttribute('width', '3.5');
+  txt.setAttribute('font', 'mozillavr');
+  txt.setAttribute('data-geo-word', 'true');
+  document.querySelector('a-scene').appendChild(txt);
+
+  setTimeout(() => {
+    txt.setAttribute('animation__scale', `property: scale; to: 1 1 1; dur: 400; easing: easeOutBack`);
+  }, 0);
+}
+
+function updateGeoLighting() {
+  const total = geoPanels.length;
+  const destroyed = geoPanels.filter(p => !p.alive).length;
+  const progress = total > 0 ? destroyed / total : 0;
+
+  // Ambient intensity: 0.35 (dark cave) → 1.4 (bright golden cosmos)
+  const intensity = (0.35 + progress * 1.05).toFixed(2);
+  document.getElementById('geo-ambient').setAttribute('light', `type: ambient; color: #FF9A30; intensity: ${intensity}`);
+
+  // Sky color: very dark → deep orange cosmos
+  const lightness = Math.floor(2 + progress * 12);
+  const saturation = Math.floor(60 + progress * 30);
+  document.getElementById('game-sky').setAttribute('color', `hsl(25, ${saturation}%, ${lightness}%)`);
+}
+
 function revealWord(rock) {
   const p    = rock.pos;
   const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
@@ -1077,13 +1407,17 @@ function revealWord(rock) {
 function endGame() {
   stopGame();
   hideAllScreens();
-
   $('result-title').textContent = 'Tempo Esgotado!';
   $('result-score-value').textContent = score + ' pts';
-  $('result-detail').textContent = `${rocksDestroyed} barreira${rocksDestroyed !== 1 ? 's' : ''} revelada${rocksDestroyed !== 1 ? 's' : ''} em 40s`;
-  lastResult = { game: 'clt', score, time: 40 };
-  pushScoreToPending('clt', score, rocksDestroyed);
-
+  if (currentGame === 'geo') {
+    $('result-detail').textContent = `${geoWordsRevealed} painel${geoWordsRevealed !== 1 ? 'is' : ''} revelado${geoWordsRevealed !== 1 ? 's' : ''} em 40s`;
+    lastResult = { game: 'geo', score, time: 40 };
+    pushScoreToPending('geo', score, geoWordsRevealed);
+  } else {
+    $('result-detail').textContent = `${rocksDestroyed} barreira${rocksDestroyed !== 1 ? 's' : ''} revelada${rocksDestroyed !== 1 ? 's' : ''} em 40s`;
+    lastResult = { game: 'clt', score, time: 40 };
+    pushScoreToPending('clt', score, rocksDestroyed);
+  }
   resultScreen.classList.add('active');
   $('player-name').value = '';
   $('player-phone').value = '';
