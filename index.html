@@ -411,15 +411,14 @@
       position="0 1.6 0"
       look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
       wasd-controls="enabled: false">
-      <!-- First-person pickaxe (Game 2 only) -->
+      <!-- First-person pickaxe (Game 2 only) — Minecraft-style lower-right -->
       <a-gltf-model
         id="picareta-fp"
         src="#picareta-model"
-        position="0.55 -0.72 -0.45"
-        rotation="20 180 -18"
-        scale="0.22 0.22 0.22"
-        visible="false"
-        animation-mixer="clip: Cubo.001Action; loop: repeat; timeScale: 0.5">
+        position="0.30 -0.36 -0.30"
+        rotation="-20 150 20"
+        scale="0.32 0.32 0.32"
+        visible="false">
       </a-gltf-model>
     </a-camera>
   </a-entity>
@@ -787,7 +786,9 @@ function beginCLTOuro() {
 
   const picareta = $('picareta-fp');
   picareta.setAttribute('visible', true);
-  picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
+  // Reset para posição/rotação de descanso (garante estado limpo entre partidas)
+  picareta.setAttribute('position', PICK_REST_POS);
+  picareta.setAttribute('rotation', PICK_REST_ROT);
 
   spawnRocks();
   startGazeLoop();
@@ -862,13 +863,32 @@ function startGazeLoop() {
   gazingRAF = requestAnimationFrame(loop);
 }
 
+// Posição de descanso da picareta — deve bater com os atributos do HTML
+const PICK_REST_ROT  = '-20 150 20';
+const PICK_STRIKE_ROT = '55 150 20'; // lâmina vai para frente (X +75°)
+const PICK_REST_POS  = '0.30 -0.36 -0.30';
+const PICK_STRIKE_POS = '0.30 -0.28 -0.40'; // sobe e avança levemente
+
 function swingPickaxe() {
   const p = $('picareta-fp');
-  p.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: once; timeScale: 2.5; clampWhenFinished: true');
-  p.addEventListener('animation-finished', function done() {
-    p.removeEventListener('animation-finished', done);
-    p.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
-  });
+  // Remove animações anteriores para reiniciar limpo
+  p.removeAttribute('animation__swingRot');
+  p.removeAttribute('animation__returnRot');
+  p.removeAttribute('animation__swingPos');
+  p.removeAttribute('animation__returnPos');
+
+  setTimeout(() => {
+    // STRIKE: lâmina avança para frente em 130ms (impacto rápido)
+    p.setAttribute('animation__swingRot',
+      `property: rotation; from: ${PICK_REST_ROT}; to: ${PICK_STRIKE_ROT}; dur: 130; easing: easeInCubic`);
+    p.setAttribute('animation__swingPos',
+      `property: position; from: ${PICK_REST_POS}; to: ${PICK_STRIKE_POS}; dur: 130; easing: easeInCubic`);
+    // RETURN: volta ao descanso suavemente após 130ms
+    p.setAttribute('animation__returnRot',
+      `property: rotation; from: ${PICK_STRIKE_ROT}; to: ${PICK_REST_ROT}; dur: 300; delay: 130; easing: easeOutBack`);
+    p.setAttribute('animation__returnPos',
+      `property: position; from: ${PICK_STRIKE_POS}; to: ${PICK_REST_POS}; dur: 300; delay: 130; easing: easeOutCubic`);
+  }, 0);
 }
 
 function registerHit(rock) {
