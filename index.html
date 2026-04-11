@@ -716,7 +716,7 @@ function updateHUD() {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   hudTimer.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
-  hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed}/${totalRocks} barreiras</span>`;
+  hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed} reveladas</span>`;
 }
 
 // ===== WEB AUDIO =====
@@ -915,13 +915,44 @@ function shatterRock(rock) {
   if (timeRemaining > 20) score += 50;
   else if (timeRemaining > 10) score += 25;
 
-  if (rocksDestroyed >= totalRocks) {
-    completionTime = 40 - timeRemaining;
-    stopGame();
-    setTimeout(() => endGame(), 1600);
-    return;
-  }
   updateHUD();
+
+  // Spawn nova rocha em posição aleatória após breve delay
+  setTimeout(() => spawnSingleRock(), 600);
+}
+
+function spawnSingleRock() {
+  if (!gameActive) return;
+
+  // Escolhe ângulo aleatório longe dos existentes
+  let angle, tries = 0;
+  const aliveAngles = rocks.filter(r => r.alive).map(r => r.def.angle);
+  do {
+    angle = Math.random() * 360;
+    tries++;
+  } while (tries < 20 && aliveAngles.some(a => Math.abs(((angle - a + 540) % 360) - 180) > 120));
+
+  const h   = 1.35 + Math.random() * 0.5;           // altura 1.35–1.85m
+  const def = ROCK_DEFS[Math.floor(Math.random() * ROCK_DEFS.length)];
+  const rad = angle * Math.PI / 180;
+  const x   = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
+  const z   = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
+  const seed = Math.floor(Math.random() * 9999);
+
+  const el = document.createElement('a-entity');
+  el.setAttribute('deformed-rock', `seed: ${seed}; radius: 0.40; difficulty: ${def.hits}`);
+  el.setAttribute('position', `${x} ${h} ${z}`);
+  el.setAttribute('scale', '0.01 0.01 0.01');
+  $('rock-container').appendChild(el);
+
+  // Spawn animation (pop-in)
+  setTimeout(() => {
+    el.setAttribute('animation__spawn', 'property: scale; to: 1 1 1; dur: 420; easing: easeOutBack');
+  }, 0);
+
+  // Cria rock com ângulo virtual para rotY do texto
+  const virtualDef = Object.assign({}, def, { angle });
+  rocks.push({ el, def: virtualDef, hitsLeft: def.hits, alive: true, pos: { x, y: h, z } });
 }
 
 function revealWord(rock) {
@@ -988,22 +1019,11 @@ function endGame() {
   stopGame();
   hideAllScreens();
 
-  if (completionTime !== null) {
-    // Todas barreiras destruídas — bônus de conclusão
-    const bonus = Math.round(score * 0.5) + (40 - completionTime) * 20;
-    const finalScore = score + bonus;
-    $('result-title').textContent = '🏆 Barreiras Destruídas!';
-    $('result-score-value').textContent = finalScore + ' pts';
-    $('result-detail').textContent = `Todas as ${totalRocks} barreiras em ${completionTime}s! +${bonus} bônus`;
-    lastResult = { game: 'clt', score: finalScore, time: completionTime };
-    pushScoreToPending('clt', finalScore, completionTime);
-  } else {
-    $('result-title').textContent = 'Tempo Esgotado!';
-    $('result-score-value').textContent = score + ' pts';
-    $('result-detail').textContent = `${rocksDestroyed} de ${totalRocks} barreiras reveladas em 40s`;
-    lastResult = { game: 'clt', score, time: 40 };
-    pushScoreToPending('clt', score, 40);
-  }
+  $('result-title').textContent = 'Tempo Esgotado!';
+  $('result-score-value').textContent = score + ' pts';
+  $('result-detail').textContent = `${rocksDestroyed} barreira${rocksDestroyed !== 1 ? 's' : ''} revelada${rocksDestroyed !== 1 ? 's' : ''} em 40s`;
+  lastResult = { game: 'clt', score, time: 40 };
+  pushScoreToPending('clt', score, rocksDestroyed);
 
   resultScreen.classList.add('active');
   $('player-name').value = '';
