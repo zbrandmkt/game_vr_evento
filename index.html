@@ -530,18 +530,34 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
     .catch(e => console.error('[Firebase] Erro:', e));
 }
 
-// ===== ROCK DEFINITIONS (9 barreiras em 360°) =====
+// ===== ROCK POSITIONS — 9 slots fixos em 360° com 3 zonas de altura =====
 const ROCK_RADIUS = 3.0;
-const ROCK_DEFS = [
-  { word: "Link\nAutocontratação",         angle: 0,   h: 1.60, hits: 3, pts: 200 },
-  { word: "Teimosinha",                     angle: 40,  h: 1.40, hits: 2, pts: 100 },
-  { word: "Averba já",                      angle: 80,  h: 1.80, hits: 2, pts: 100 },
-  { word: "Consulta em lote",               angle: 130, h: 1.50, hits: 3, pts: 200 },
-  { word: "Disparo no\nWhatsapp",           angle: 175, h: 1.70, hits: 2, pts: 100 },
-  { word: "Vitor.ia\nIA de Elegibilidade", angle: 220, h: 1.45, hits: 4, pts: 350 },
-  { word: "Melhores comissões",             angle: 265, h: 1.60, hits: 2, pts: 100 },
-  { word: "Maior range\nde idade",          angle: 305, h: 1.75, hits: 3, pts: 200 },
-  { word: "CNAEs ilimitados",               angle: 345, h: 1.55, hits: 4, pts: 350 },
+const ROCK_POSITIONS = [
+  // Eye level (h 1.45–1.70m): jogador olha reto
+  { angle: 0,   h: 1.55 },
+  { angle: 40,  h: 1.45 },
+  { angle: 175, h: 1.60 },
+  { angle: 265, h: 1.50 },
+  { angle: 345, h: 1.65 },
+  // High — olhar para cima ~22° (h 2.80–2.90m)
+  { angle: 80,  h: 2.85 },
+  { angle: 220, h: 2.80 },
+  // Floor — olhar para baixo ~20° (h 0.45–0.55m)
+  { angle: 130, h: 0.50 },
+  { angle: 310, h: 0.45 },
+];
+
+// ===== ROCK WORDS — pool de palavras atribuídas aleatoriamente a cada slot =====
+const ROCK_WORDS = [
+  { word: "Link\nAutocontratação",         hits: 3, pts: 200 },
+  { word: "Teimosinha",                     hits: 2, pts: 100 },
+  { word: "Averba já",                      hits: 2, pts: 100 },
+  { word: "Consulta em lote",               hits: 3, pts: 200 },
+  { word: "Disparo no\nWhatsapp",           hits: 2, pts: 100 },
+  { word: "Vitor.ia\nIA de Elegibilidade", hits: 4, pts: 350 },
+  { word: "Melhores comissões",             hits: 2, pts: 100 },
+  { word: "Maior range\nde idade",          hits: 3, pts: 200 },
+  { word: "CNAEs ilimitados",               hits: 4, pts: 350 },
 ];
 
 // ===== GAME STATE =====
@@ -552,12 +568,13 @@ let timeRemaining = 40;
 let score = 0;
 let rocks = [];
 let rocksDestroyed = 0;
-const totalRocks = ROCK_DEFS.length;
 let completionTime = null;
 let gazeTarget = null;
-let nodDetectionRAF = null;
 let gazingRAF = null;
+let hitCooldown = false;
 let lastResult = { game: null, score: 0, time: 0 };
+// Shuffled word index pool — ensures variety across respawns
+let wordPool = [];
 
 // ===== DOM REFS =====
 const $ = id => document.getElementById(id);
@@ -705,9 +722,8 @@ function beginGame() {
 
 function stopGame() {
   gameActive = false;
-  if (gameTimer)        { clearInterval(gameTimer); gameTimer = null; }
-  if (nodDetectionRAF)  { cancelAnimationFrame(nodDetectionRAF); nodDetectionRAF = null; }
-  if (gazingRAF)        { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
+  if (gameTimer)  { clearInterval(gameTimer); gameTimer = null; }
+  if (gazingRAF)  { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
 }
 
 // ===== HUD UPDATE =====
@@ -775,8 +791,20 @@ function beginCLTOuro() {
 
   spawnRocks();
   startGazeLoop();
-  startNodDetection();
   updateHUD();
+}
+
+function getRandomWord() {
+  // Refill pool when empty to guarantee variety
+  if (wordPool.length === 0) {
+    wordPool = ROCK_WORDS.map((_, i) => i);
+    // Shuffle
+    for (let i = wordPool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [wordPool[i], wordPool[j]] = [wordPool[j], wordPool[i]];
+    }
+  }
+  return ROCK_WORDS[wordPool.pop()];
 }
 
 function spawnRocks() {
@@ -786,19 +814,21 @@ function spawnRocks() {
   const container = $('rock-container');
   while (container.firstChild) container.removeChild(container.firstChild);
   rocks = [];
+  wordPool = []; // reset pool
 
-  ROCK_DEFS.forEach((def, i) => {
-    const rad = def.angle * Math.PI / 180;
+  ROCK_POSITIONS.forEach((slot, i) => {
+    const word = getRandomWord();
+    const rad = slot.angle * Math.PI / 180;
     const x = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
-    const y = def.h;
+    const y = slot.h;
     const z = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
 
     const el = document.createElement('a-entity');
-    el.setAttribute('deformed-rock', `seed: ${i*7+13}; radius: 0.40; difficulty: ${def.hits}`);
+    el.setAttribute('deformed-rock', `seed: ${i*7+13}; radius: 0.40; difficulty: ${word.hits}`);
     el.setAttribute('position', `${x} ${y} ${z}`);
     container.appendChild(el);
 
-    rocks.push({ el, def, hitsLeft: def.hits, alive: true, pos: {x, y, z} });
+    rocks.push({ el, word, hitsLeft: word.hits, alive: true, pos: {x, y, z}, slotIdx: i, angle: slot.angle });
   });
 }
 
@@ -843,7 +873,6 @@ function swingPickaxe() {
 
 function registerHit(rock) {
   if (!gameActive || !rock || !rock.alive) return;
-  swingPickaxe();
   rock.hitsLeft--;
 
   if (rock.hitsLeft <= 0) {
@@ -857,8 +886,16 @@ function registerHit(rock) {
 }
 
 function handleTouchHit() {
-  const target = gazeTarget || rocks.find(r => r.alive);
-  if (target) registerHit(target);
+  if (!gameActive || hitCooldown) return;
+  const target = gazeTarget; // only hit what player is aiming at — no random fallback
+  if (!target) return;
+
+  hitCooldown = true;
+  swingPickaxe(); // swing animation fires immediately
+  setTimeout(() => {
+    registerHit(target); // hit registers mid-swing (250ms delay for feel)
+  }, 250);
+  setTimeout(() => { hitCooldown = false; }, 500);
 }
 
 function showHitFeedback() {
@@ -911,48 +948,41 @@ function shatterRock(rock) {
   playShatterSound();
 
   // Score: pts + time bonus
-  score += rock.def.pts;
+  score += rock.word.pts;
   if (timeRemaining > 20) score += 50;
   else if (timeRemaining > 10) score += 25;
 
   updateHUD();
 
-  // Spawn nova rocha em posição aleatória após breve delay
-  setTimeout(() => spawnSingleRock(), 600);
+  // Respawn same slot after 3.5s (player will be looking elsewhere by then)
+  const slotIdx = rock.slotIdx;
+  setTimeout(() => respawnSlot(slotIdx), 3500);
 }
 
-function spawnSingleRock() {
+function respawnSlot(slotIdx) {
   if (!gameActive) return;
 
-  // Escolhe ângulo aleatório longe dos existentes
-  let angle, tries = 0;
-  const aliveAngles = rocks.filter(r => r.alive).map(r => r.def.angle);
-  do {
-    angle = Math.random() * 360;
-    tries++;
-  } while (tries < 20 && aliveAngles.some(a => Math.abs(((angle - a + 540) % 360) - 180) > 120));
-
-  const h   = 1.35 + Math.random() * 0.5;           // altura 1.35–1.85m
-  const def = ROCK_DEFS[Math.floor(Math.random() * ROCK_DEFS.length)];
-  const rad = angle * Math.PI / 180;
-  const x   = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
-  const z   = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
+  const slot = ROCK_POSITIONS[slotIdx];
+  const word = getRandomWord();
+  const rad = slot.angle * Math.PI / 180;
+  const x = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
+  const y = slot.h;
+  const z = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
   const seed = Math.floor(Math.random() * 9999);
 
   const el = document.createElement('a-entity');
-  el.setAttribute('deformed-rock', `seed: ${seed}; radius: 0.40; difficulty: ${def.hits}`);
-  el.setAttribute('position', `${x} ${h} ${z}`);
+  el.setAttribute('deformed-rock', `seed: ${seed}; radius: 0.40; difficulty: ${word.hits}`);
+  el.setAttribute('position', `${x} ${y} ${z}`);
   el.setAttribute('scale', '0.01 0.01 0.01');
   $('rock-container').appendChild(el);
 
-  // Spawn animation (pop-in)
+  // Pop-in scale animation
   setTimeout(() => {
     el.setAttribute('animation__spawn', 'property: scale; to: 1 1 1; dur: 420; easing: easeOutBack');
   }, 0);
 
-  // Cria rock com ângulo virtual para rotY do texto
-  const virtualDef = Object.assign({}, def, { angle });
-  rocks.push({ el, def: virtualDef, hitsLeft: def.hits, alive: true, pos: { x, y: h, z } });
+  const rock = { el, word, hitsLeft: word.hits, alive: true, pos: { x, y, z }, slotIdx, angle: slot.angle };
+  rocks.push(rock);
 }
 
 function revealWord(rock) {
@@ -962,10 +992,10 @@ function revealWord(rock) {
   const endX = (p.x + outX * 1.5).toFixed(2);
   const endY = (p.y + 1.2).toFixed(2);
   const endZ = (p.z + outZ * 1.5).toFixed(2);
-  const rotY = (180 - rock.def.angle);
+  const rotY = (180 - rock.angle);
 
   const txt = document.createElement('a-text');
-  txt.setAttribute('value', rock.def.word);
+  txt.setAttribute('value', rock.word.word);
   txt.setAttribute('position', `${p.x.toFixed(2)} ${p.y.toFixed(2)} ${p.z.toFixed(2)}`);
   txt.setAttribute('rotation', `0 ${rotY} 0`);
   txt.setAttribute('scale', '0.01 0.01 0.01'); // start invisible via scale
@@ -985,33 +1015,6 @@ function revealWord(rock) {
   }, 0);
 
   playWhooshSound();
-}
-
-// Nod detection — hits the currently gazed rock
-function startNodDetection() {
-  const camera = document.getElementById('main-camera');
-  let lastNodTime = 0;
-  const COOLDOWN_MS    = 380;
-  const NOD_THRESHOLD  = 0.44;
-  const REST_THRESHOLD = 0.17;
-  let wasResting = true;
-
-  function checkNod() {
-    if (!gameActive) return;
-    const pitch = camera.object3D.rotation.x;
-    if (wasResting && pitch < -NOD_THRESHOLD) {
-      const now = Date.now();
-      if (now - lastNodTime > COOLDOWN_MS) {
-        const target = gazeTarget || rocks.find(r => r.alive);
-        if (target) registerHit(target);
-        lastNodTime = now;
-        wasResting  = false;
-      }
-    }
-    if (pitch > -REST_THRESHOLD) wasResting = true;
-    nodDetectionRAF = requestAnimationFrame(checkNod);
-  }
-  nodDetectionRAF = requestAnimationFrame(checkNod);
 }
 
 // ===== END GAME =====
