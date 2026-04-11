@@ -672,7 +672,7 @@ function showIntro() {
   }, WORD_INTERVAL);
 
   // Narration audio
-  const audio = new Audio('assets/narra\u00e7\u00e3o.mp3');
+  const audio = new Audio('assets/narracao.mp3');
   audio.addEventListener('ended', () => setTimeout(doCountdown, 700));
   audio.play().catch(() => {
     // Sem áudio: countdown depois das palavras + pausa
