@@ -242,6 +242,31 @@
       color: #fff; cursor: pointer; font-size: 14px; font-weight: 700;
     }
 
+    /* ===== CROSSHAIR ===== */
+    #crosshair {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9997; pointer-events: none; display: none;
+      transition: transform 0.1s;
+    }
+    #crosshair.active { display: block; }
+    #crosshair.on-target { transform: translate(-50%, -50%) scale(1.35); }
+    #crosshair.on-target .ch-ring { stroke: #FF8B1A; opacity: 1; }
+    #crosshair.on-target .ch-line { stroke: #FF8B1A; }
+    #crosshair.on-target .ch-dot  { fill: #FF8B1A; }
+
+    /* ===== NARRATION SUBTITLE ===== */
+    #narration-sub {
+      position: fixed; bottom: 90px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 10005; text-align: center;
+      font-size: 18px; font-weight: 600; color: #fff;
+      text-shadow: 0 2px 16px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
+      max-width: 82%; line-height: 1.65;
+      pointer-events: none; display: none; letter-spacing: 0.3px;
+    }
+    #narration-sub.active { display: block; }
+
     /* ===== GAME 2 HIT FEEDBACK ===== */
     #hit-feedback {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -294,13 +319,28 @@
 
   <!-- GAME HUD -->
   <div id="game-hud">
-    <div id="hud-timer">01:00</div>
+    <div id="hud-timer">00:40</div>
     <div id="hud-center-info"></div>
   </div>
   <div id="hud-score">0 pts</div>
 
+  <!-- CROSSHAIR (mira) -->
+  <div id="crosshair">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="3" class="ch-dot" fill="white"/>
+      <circle cx="24" cy="24" r="12" class="ch-ring" stroke="white" stroke-width="1" opacity="0.45"/>
+      <line x1="24" y1="4"  x2="24" y2="15" class="ch-line" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="24" y1="33" x2="24" y2="44" class="ch-line" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="4"  y1="24" x2="15" y2="24" class="ch-line" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="33" y1="24" x2="44" y2="24" class="ch-line" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <!-- NARRATION SUBTITLE -->
+  <div id="narration-sub"></div>
+
   <!-- TOUCH HIT ZONE (Game 2 fallback) -->
-  <div id="touch-hit-zone" ontouchstart="registerHit()" onclick="registerHit()"></div>
+  <div id="touch-hit-zone" ontouchstart="handleTouchHit()" onclick="handleTouchHit()"></div>
 
   <!-- HIT FEEDBACK (Game 2) -->
   <div id="hit-feedback">CRACK!</div>
@@ -389,50 +429,14 @@
     <a-entity id="star-field" star-field></a-entity>
   </a-entity>
 
-  <!-- ===== GAME 2 WORLD: CLT e Ouro ===== -->
+  <!-- ===== GAME 2 WORLD: CLT e Ouro — Quebra as Barreiras ===== -->
   <a-entity id="game2-world" visible="true">
-
-    <!-- Magma glow from below -->
-    <a-light type="point" color="#FF6600" intensity="0.5" position="0 0.1 -3" distance="10"></a-light>
-    <a-light type="point" color="#FF4400" intensity="0.3" position="-3 0.1 -4" distance="8"></a-light>
-    <a-light type="point" color="#FF4400" intensity="0.3" position="3 0.1 -2" distance="8"></a-light>
-
-    <!-- Presenca logo on wall (removed text branding) -->
-
-    <!-- Hexagonal grid wireframe background -->
-    <a-entity id="hex-grid" position="0 3 -5.5">
-      <a-ring position="-2 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
-      <a-ring position="-1 0 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
-      <a-ring position="0 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
-      <a-ring position="1 0 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
-      <a-ring position="2 1 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.15"></a-ring>
-      <a-ring position="-1.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
-      <a-ring position="0.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
-      <a-ring position="1.5 1.9 0" radius-inner="0.45" radius-outer="0.5" segments-theta="6" color="#FF8B1A" opacity="0.1"></a-ring>
-    </a-entity>
-
-    <!-- Rock container -->
-    <a-entity id="rock-container" position="0 1.2 -3">
-    </a-entity>
-
-    <!-- CLT Worker silhouette (behind rock) -->
-    <a-entity id="clt-silhouette" position="0 1.2 -3.1" visible="false">
-      <!-- Head -->
-      <a-sphere position="0 0.8 0" radius="0.2" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.4"></a-sphere>
-      <!-- Body -->
-      <a-box position="0 0.2 0" width="0.5" height="0.8" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
-      <!-- Arms -->
-      <a-box position="-0.4 0.3 0" width="0.3" height="0.15" depth="0.12" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
-      <a-box position="0.4 0.3 0" width="0.3" height="0.15" depth="0.12" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
-      <!-- Legs -->
-      <a-box position="-0.12 -0.4 0" width="0.18" height="0.5" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
-      <a-box position="0.12 -0.4 0" width="0.18" height="0.5" depth="0.15" color="#FFB800" material="emissive: #FFB800; emissiveIntensity: 0.3"></a-box>
-      <!-- CLT text -->
-      <a-text value="CLT" position="0 0.2 0.1" align="center" color="#0A0A0A" width="2" font="mozillavr"></a-text>
-    </a-entity>
-
-    <!-- Ambient -->
-    <a-light type="ambient" color="#331800" intensity="0.4"></a-light>
+    <a-light type="point" color="#FF6600" intensity="0.6" position="0 0.5 0" distance="12"></a-light>
+    <a-light type="point" color="#FF4400" intensity="0.25" position="-4 1 -4" distance="10"></a-light>
+    <a-light type="point" color="#FF4400" intensity="0.25" position="4 1 4" distance="10"></a-light>
+    <a-light type="ambient" color="#2a1200" intensity="0.5"></a-light>
+    <!-- Rock container (position 0,0,0 → rocks use world positions) -->
+    <a-entity id="rock-container"></a-entity>
   </a-entity>
 
   <!-- Global ambient -->
@@ -443,6 +447,59 @@
 // ===================================================================
 // PRESENCA VR GAME - COMPLETE GAME LOGIC
 // ===================================================================
+
+// ===== DEFORMED ROCK COMPONENT =====
+AFRAME.registerComponent('deformed-rock', {
+  schema: {
+    seed:       { type: 'int',    default: 42 },
+    radius:     { type: 'number', default: 0.38 },
+    difficulty: { type: 'int',    default: 2 }   // 2=easy 3=med 4=hard
+  },
+  init: function() {
+    const { seed, radius, difficulty } = this.data;
+    let s = seed;
+    function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+
+    const geo = new THREE.SphereGeometry(radius, 10, 8);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const f = radius * 0.42;
+      pos.setX(i, pos.getX(i) + (rnd()-0.5)*f);
+      pos.setY(i, pos.getY(i) + (rnd()-0.5)*f*0.75);
+      pos.setZ(i, pos.getZ(i) + (rnd()-0.5)*f);
+    }
+    geo.computeVertexNormals();
+
+    const colMap = { 2: 0x7A6548, 3: 0x5E4530, 4: 0x4A2E18 };
+    const mat = new THREE.MeshStandardMaterial({
+      color: colMap[difficulty] || 0x7A6548,
+      roughness: 0.92, metalness: 0.06, flatShading: true
+    });
+    this.el.setObject3D('rock', new THREE.Mesh(geo, mat));
+
+    // Hard rocks glow orange-red
+    if (difficulty >= 3) {
+      const glowEl = document.createElement('a-light');
+      glowEl.setAttribute('type', 'point');
+      glowEl.setAttribute('color', difficulty === 4 ? '#FF3300' : '#FF6600');
+      glowEl.setAttribute('intensity', '0.35');
+      glowEl.setAttribute('distance', '1.8');
+      this.el.appendChild(glowEl);
+    }
+  },
+  shake: function() {
+    const orig = this.el.object3D.position.clone();
+    let n = 0;
+    const iv = setInterval(() => {
+      this.el.object3D.position.set(
+        orig.x + (Math.random()-0.5)*0.1,
+        orig.y + (Math.random()-0.5)*0.06,
+        orig.z + (Math.random()-0.5)*0.1
+      );
+      if (++n >= 7) { clearInterval(iv); this.el.object3D.position.copy(orig); }
+    }, 28);
+  }
+});
 
 // ===== STAR FIELD COMPONENT =====
 AFRAME.registerComponent('star-field', {
@@ -473,43 +530,53 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
     .catch(e => console.error('[Firebase] Erro:', e));
 }
 
+// ===== ROCK DEFINITIONS (9 barreiras em 360°) =====
+const ROCK_RADIUS = 3.0;
+const ROCK_DEFS = [
+  { word: "Link\nAutocontratação",         angle: 0,   h: 1.60, hits: 3, pts: 200 },
+  { word: "Teimosinha",                     angle: 40,  h: 1.40, hits: 2, pts: 100 },
+  { word: "Averba já",                      angle: 80,  h: 1.80, hits: 2, pts: 100 },
+  { word: "Consulta em lote",               angle: 130, h: 1.50, hits: 3, pts: 200 },
+  { word: "Disparo no\nWhatsapp",           angle: 175, h: 1.70, hits: 2, pts: 100 },
+  { word: "Vitor.ia\nIA de Elegibilidade", angle: 220, h: 1.45, hits: 4, pts: 350 },
+  { word: "Melhores comissões",             angle: 265, h: 1.60, hits: 2, pts: 100 },
+  { word: "Maior range\nde idade",          angle: 305, h: 1.75, hits: 3, pts: 200 },
+  { word: "CNAEs ilimitados",               angle: 345, h: 1.55, hits: 4, pts: 350 },
+];
+
 // ===== GAME STATE =====
 let currentGame = 'clt';
-let gameActive = false;
-let gameTimer = null;
-let timeRemaining = 60;
+let gameActive  = false;
+let gameTimer   = null;
+let timeRemaining = 40;
 let score = 0;
-
-// Game 2 state
-let rockFragments = [];
-let totalFragments = 25;
-let destroyedFragments = 0;
-let nodState = 'rest'; // rest, winding, cooldown
-let lastPitch = 0;
-let nodCooldownTimer = null;
+let rocks = [];
+let rocksDestroyed = 0;
+const totalRocks = ROCK_DEFS.length;
 let completionTime = null;
-
-// Last result for saving
+let gazeTarget = null;
+let nodDetectionRAF = null;
+let gazingRAF = null;
 let lastResult = { game: null, score: 0, time: 0 };
 
 // ===== DOM REFS =====
 const $ = id => document.getElementById(id);
-const mainMenu = $('main-menu');
-const introOverlay = $('intro-overlay');
-const introText = $('intro-text');
-const introCountdown = $('intro-countdown');
-const gameHud = $('game-hud');
-const hudScore = $('hud-score');
-const hudTimer = $('hud-timer');
-const hudCenter = $('hud-center-info');
-const touchHitZone = $('touch-hit-zone');
-const hitFeedback = $('hit-feedback');
-const resultScreen = $('result-screen');
+const mainMenu      = $('main-menu');
+const introOverlay  = $('intro-overlay');
+const introCountdown= $('intro-countdown');
+const gameHud       = $('game-hud');
+const hudScore      = $('hud-score');
+const hudTimer      = $('hud-timer');
+const hudCenter     = $('hud-center-info');
+const touchHitZone  = $('touch-hit-zone');
+const hitFeedback   = $('hit-feedback');
+const resultScreen  = $('result-screen');
 const rankingScreen = $('ranking-screen');
-const backMenuBtn = $('back-menu-btn');
-const vrEnterBtn = $('vr-enter-btn');
-
-const game2World = $('game2-world');
+const backMenuBtn   = $('back-menu-btn');
+const vrEnterBtn    = $('vr-enter-btn');
+const crosshairEl   = $('crosshair');
+const narrationSub  = $('narration-sub');
+const game2World    = $('game2-world');
 
 // ===== MENU FUNCTIONS =====
 function startGame() {
@@ -555,60 +622,92 @@ function hideAllScreens() {
   introOverlay.classList.remove('active');
   gameHud.classList.remove('active');
   hudScore.classList.remove('active');
+  crosshairEl.classList.remove('active');
+  narrationSub.classList.remove('active');
+  narrationSub.textContent = '';
   $('picareta-fp').setAttribute('visible', false);
   touchHitZone.classList.remove('active');
   resultScreen.classList.remove('active');
   rankingScreen.classList.remove('active');
 }
 
-// ===== INTRO SEQUENCE =====
+// ===== INTRO: narração + legenda word-by-word + countdown =====
 function showIntro() {
   hideAllScreens();
   introCountdown.textContent = '';
-  introOverlay.classList.add('active');
-  setTimeout(() => {
+
+  const NARRATION = "O mercado consignado está preso em velhas barreiras... Você tem 40 segundos para quebrá-las e descobrir que o Futuro é com Presença.";
+  const words = NARRATION.split(' ');
+  const WORD_INTERVAL = 520; // ms por palavra
+
+  narrationSub.classList.add('active');
+  narrationSub.textContent = '';
+
+  let countdownStarted = false;
+  function doCountdown() {
+    if (countdownStarted) return;
+    countdownStarted = true;
+    narrationSub.classList.remove('active');
+    introOverlay.classList.add('active');
     let count = 3;
     introCountdown.textContent = count;
-    const countInterval = setInterval(() => {
+    const ci = setInterval(() => {
       count--;
       if (count > 0) {
         introCountdown.textContent = count;
       } else {
-        clearInterval(countInterval);
+        clearInterval(ci);
         introOverlay.classList.remove('active');
         beginGame();
       }
     }, 1000);
-  }, 1000);
+  }
+
+  // Reveal words progressively
+  let idx = 0;
+  const wordTimer = setInterval(() => {
+    idx++;
+    narrationSub.textContent = words.slice(0, idx).join(' ');
+    if (idx >= words.length) clearInterval(wordTimer);
+  }, WORD_INTERVAL);
+
+  // Narration audio
+  const audio = new Audio('assets/narra\u00e7\u00e3o.mp3');
+  audio.addEventListener('ended', () => setTimeout(doCountdown, 700));
+  audio.play().catch(() => {
+    // Sem áudio: countdown depois das palavras + pausa
+    setTimeout(doCountdown, words.length * WORD_INTERVAL + 1200);
+  });
+  // Segurança: máximo 25s
+  setTimeout(doCountdown, 25000);
 }
 
 // ===== BEGIN GAME =====
 function beginGame() {
-  gameActive = true;
-  score = 0;
-  timeRemaining = 60;
+  gameActive    = true;
+  score         = 0;
+  timeRemaining = 40;
+  rocksDestroyed = 0;
+  completionTime = null;
+  gazeTarget    = null;
 
-  // Show HUD
   gameHud.classList.add('active');
   hudScore.classList.add('active');
   updateHUD();
-
   beginCLTOuro();
 
-  // Start timer
   gameTimer = setInterval(() => {
     timeRemaining--;
     updateHUD();
-    if (timeRemaining <= 0) {
-      endGame();
-    }
+    if (timeRemaining <= 0) endGame();
   }, 1000);
 }
 
 function stopGame() {
   gameActive = false;
-  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
-  if (nodCooldownTimer) { clearTimeout(nodCooldownTimer); nodCooldownTimer = null; }
+  if (gameTimer)        { clearInterval(gameTimer); gameTimer = null; }
+  if (nodDetectionRAF)  { cancelAnimationFrame(nodDetectionRAF); nodDetectionRAF = null; }
+  if (gazingRAF)        { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
 }
 
 // ===== HUD UPDATE =====
@@ -616,161 +715,249 @@ function updateHUD() {
   hudScore.textContent = score + ' pts';
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
-  hudTimer.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-  const pct = Math.round((destroyedFragments / totalFragments) * 100);
-  hudCenter.innerHTML = '<span class="hud-progress">' + pct + '% revelado</span>';
+  hudTimer.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+  hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed}/${totalRocks} barreiras</span>`;
 }
 
-// ===== GAME 2: CLT E OURO =====
+// ===== WEB AUDIO =====
+let audioCtx = null;
+function ensureAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playHitSound() {
+  ensureAudioCtx();
+  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(70, audioCtx.currentTime + 0.12);
+  g.gain.setValueAtTime(0.35, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+}
+function playShatterSound() {
+  ensureAudioCtx();
+  const buf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate*0.45), audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 1.2);
+  const src = audioCtx.createBufferSource(), filt = audioCtx.createBiquadFilter(), g = audioCtx.createGain();
+  filt.type = 'bandpass'; filt.frequency.value = 900; filt.Q.value = 0.6;
+  g.gain.setValueAtTime(0.9, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+  src.buffer = buf; src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+  src.start(); src.stop(audioCtx.currentTime + 0.45);
+}
+function playWhooshSound() {
+  ensureAudioCtx();
+  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1400, audioCtx.currentTime + 0.25);
+  g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+}
+
+// ===== GAME 2: QUEBRA AS BARREIRAS =====
 function beginCLTOuro() {
   game2World.setAttribute('visible', true);
   document.getElementById('game-sky').setAttribute('visible', true);
   document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
   document.getElementById('shared-env').setAttribute('visible', false);
   touchHitZone.classList.add('active');
+  crosshairEl.classList.add('active');
 
-  // Show first-person pickaxe
   const picareta = $('picareta-fp');
   picareta.setAttribute('visible', true);
   picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
 
-  destroyedFragments = 0;
-  completionTime = null;
-  createRockFragments();
-  document.getElementById('clt-silhouette').setAttribute('visible', false);
-
+  spawnRocks();
+  startGazeLoop();
   startNodDetection();
   updateHUD();
 }
 
-function createRockFragments() {
-  const container = document.getElementById('rock-container');
-  // Clear existing
+function spawnRocks() {
+  const container = $('rock-container');
   while (container.firstChild) container.removeChild(container.firstChild);
-  rockFragments = [];
+  rocks = [];
 
-  totalFragments = 25;
-  const goldColors = ['#FFB800', '#FFC833', '#E5A300', '#CC9200', '#FFDD66'];
+  ROCK_DEFS.forEach((def, i) => {
+    const rad = def.angle * Math.PI / 180;
+    const x = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
+    const y = def.h;
+    const z = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
 
-  for (let i = 0; i < totalFragments; i++) {
-    const el = document.createElement('a-box');
-    const angle = (i / totalFragments) * Math.PI * 2;
-    const layer = Math.floor(i / 8);
-    const radius = 0.5 + Math.random() * 0.3;
-    const x = Math.cos(angle) * radius * 0.6;
-    const y = (layer - 1) * 0.4 + (Math.random() - 0.5) * 0.2;
-    const z = Math.sin(angle) * radius * 0.3;
-    const size = 0.2 + Math.random() * 0.2;
-
+    const el = document.createElement('a-entity');
+    el.setAttribute('deformed-rock', `seed: ${i*7+13}; radius: 0.40; difficulty: ${def.hits}`);
     el.setAttribute('position', `${x} ${y} ${z}`);
-    el.setAttribute('width', size);
-    el.setAttribute('height', size);
-    el.setAttribute('depth', size);
-    el.setAttribute('rotation', `${Math.random()*30} ${Math.random()*30} ${Math.random()*30}`);
-
-    const color = goldColors[Math.floor(Math.random() * goldColors.length)];
-    el.setAttribute('color', color);
-    el.setAttribute('material', `metalness: 0.7; roughness: 0.3; emissive: ${color}; emissiveIntensity: 0.15`);
-
     container.appendChild(el);
-    rockFragments.push({ el, integrity: 1 + Math.floor(Math.random() * 2), alive: true });
-  }
-}
 
-function swingPickaxe() {
-  const picareta = $('picareta-fp');
-  picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: once; timeScale: 2; clampWhenFinished: true');
-  picareta.addEventListener('animation-finished', function onSwingDone() {
-    picareta.removeEventListener('animation-finished', onSwingDone);
-    picareta.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
+    rocks.push({ el, def, hitsLeft: def.hits, alive: true, pos: {x, y, z} });
   });
 }
 
-function registerHit() {
-  if (!gameActive || currentGame !== 'clt') return;
-  swingPickaxe();
+// Gaze targeting — finds which rock the player is looking at
+function startGazeLoop() {
+  const camera = document.getElementById('main-camera');
+  const GAZE_ANGLE = 0.28; // ~16° cone
 
-  // Find a random alive fragment
-  const alive = rockFragments.filter(f => f.alive);
-  if (alive.length === 0) return;
+  function loop() {
+    if (!gameActive) return;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
+    const camPos = new THREE.Vector3();
+    camera.object3D.getWorldPosition(camPos);
 
-  const target = alive[Math.floor(Math.random() * alive.length)];
-  target.integrity--;
+    let best = null, bestAngle = GAZE_ANGLE;
+    rocks.forEach(rock => {
+      if (!rock.alive) return;
+      const toRock = new THREE.Vector3(
+        rock.pos.x - camPos.x, rock.pos.y - camPos.y, rock.pos.z - camPos.z
+      ).normalize();
+      const angle = dir.angleTo(toRock);
+      if (angle < bestAngle) { bestAngle = angle; best = rock; }
+    });
 
-  if (target.integrity <= 0) {
-    target.alive = false;
-    destroyedFragments++;
+    gazeTarget = best;
+    if (best) crosshairEl.classList.add('on-target');
+    else      crosshairEl.classList.remove('on-target');
 
-    // Animate destruction: shrink and remove
-    const pos = target.el.getAttribute('position');
-    target.el.setAttribute('animation', `property: scale; to: 0 0 0; dur: 300; easing: easeInQuad`);
-    target.el.setAttribute('animation__pos', `property: position; to: ${pos.x} ${pos.y + 1} ${pos.z}; dur: 300`);
-    setTimeout(() => {
-      if (target.el.parentNode) target.el.parentNode.removeChild(target.el);
-    }, 350);
-
-    // Show silhouette progressively
-    if (destroyedFragments > totalFragments * 0.3) {
-      document.getElementById('clt-silhouette').setAttribute('visible', true);
-    }
-
-    // Check completion
-    if (destroyedFragments >= totalFragments) {
-      completionTime = 60 - timeRemaining;
-      score = Math.max(1, Math.round((60 - completionTime) * 100)); // faster = more points
-      endGame();
-      return;
-    }
-  } else {
-    // Visual hit feedback - shake
-    const pos = target.el.getAttribute('position');
-    target.el.setAttribute('animation', `property: position; to: ${pos.x + 0.05} ${pos.y} ${pos.z}; dur: 50; dir: alternate; loop: 2`);
+    gazingRAF = requestAnimationFrame(loop);
   }
+  gazingRAF = requestAnimationFrame(loop);
+}
 
-  // Show hit feedback text
-  showHitFeedback();
-  score += 10;
-  updateHUD();
+function swingPickaxe() {
+  const p = $('picareta-fp');
+  p.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: once; timeScale: 2.5; clampWhenFinished: true');
+  p.addEventListener('animation-finished', function done() {
+    p.removeEventListener('animation-finished', done);
+    p.setAttribute('animation-mixer', 'clip: Cubo.001Action; loop: repeat; timeScale: 0.5');
+  });
+}
+
+function registerHit(rock) {
+  if (!gameActive || !rock || !rock.alive) return;
+  swingPickaxe();
+  rock.hitsLeft--;
+
+  if (rock.hitsLeft <= 0) {
+    shatterRock(rock);
+  } else {
+    playHitSound();
+    const comp = rock.el.components['deformed-rock'];
+    if (comp && comp.shake) comp.shake();
+    showHitFeedback();
+  }
+}
+
+function handleTouchHit() {
+  const target = gazeTarget || rocks.find(r => r.alive);
+  if (target) registerHit(target);
 }
 
 function showHitFeedback() {
   const texts = ['CRACK!', 'BAM!', 'POW!', 'TOCK!'];
   hitFeedback.textContent = texts[Math.floor(Math.random() * texts.length)];
   hitFeedback.style.display = 'block';
-  hitFeedback.style.left = (40 + Math.random() * 20) + '%';
-  hitFeedback.style.top = (40 + Math.random() * 20) + '%';
-  setTimeout(() => { hitFeedback.style.display = 'none'; }, 200);
+  hitFeedback.style.left = (38 + Math.random() * 24) + '%';
+  hitFeedback.style.top  = (38 + Math.random() * 24) + '%';
+  setTimeout(() => { hitFeedback.style.display = 'none'; }, 180);
 }
 
-// Nod detection for Game 2
-let nodDetectionRAF = null;
+function shatterRock(rock) {
+  rock.alive = false;
+  rocksDestroyed++;
+  const p = rock.pos;
+  const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
+  const scene = document.querySelector('a-scene');
+
+  // Spawn 8 fragments flying outward
+  for (let i = 0; i < 8; i++) {
+    const frag = document.createElement('a-box');
+    const sz = (0.04 + Math.random() * 0.08).toFixed(3);
+    const fx = (p.x + outX*(0.6+Math.random()*1.2) + (Math.random()-0.5)*0.7).toFixed(2);
+    const fy = (p.y + Math.random()*1.1 - 0.1).toFixed(2);
+    const fz = (p.z + outZ*(0.6+Math.random()*1.2) + (Math.random()-0.5)*0.7).toFixed(2);
+    const rx = Math.floor(Math.random()*360), ry = Math.floor(Math.random()*360);
+    frag.setAttribute('width', sz); frag.setAttribute('height', sz); frag.setAttribute('depth', sz);
+    frag.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+    frag.setAttribute('material', 'color: #7A6548; roughness: 0.9; transparent: true; opacity: 1');
+    frag.setAttribute('animation__fly',    `property: position; to: ${fx} ${fy} ${fz}; dur: 580; easing: easeOutQuad`);
+    frag.setAttribute('animation__rot',    `property: rotation; to: ${rx} ${ry} 0; dur: 580`);
+    frag.setAttribute('animation__fade',   `property: material.opacity; to: 0; dur: 480; delay: 100; easing: easeInQuad`);
+    scene.appendChild(frag);
+    setTimeout(() => { if (frag.parentNode) frag.parentNode.removeChild(frag); }, 650);
+  }
+
+  // Remove rock entity
+  if (rock.el.parentNode) rock.el.parentNode.removeChild(rock.el);
+
+  // Reveal word — flies from rock position outward
+  revealWord(rock);
+  playShatterSound();
+
+  // Score: pts + time bonus
+  score += rock.def.pts;
+  if (timeRemaining > 20) score += 50;
+  else if (timeRemaining > 10) score += 25;
+
+  if (rocksDestroyed >= totalRocks) {
+    completionTime = 40 - timeRemaining;
+    stopGame();
+    setTimeout(() => endGame(), 1600);
+    return;
+  }
+  updateHUD();
+}
+
+function revealWord(rock) {
+  const p   = rock.pos;
+  const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
+  const endX = (p.x + outX * 1.4).toFixed(2);
+  const endY = (p.y + 1.1).toFixed(2);
+  const endZ = (p.z + outZ * 1.4).toFixed(2);
+  const rotY = (180 - rock.def.angle);
+
+  const txt = document.createElement('a-text');
+  txt.setAttribute('value', rock.def.word);
+  txt.setAttribute('position', `${p.x.toFixed(2)} ${p.y.toFixed(2)} ${p.z.toFixed(2)}`);
+  txt.setAttribute('rotation', `0 ${rotY} 0`);
+  txt.setAttribute('align', 'center');
+  txt.setAttribute('color', '#FF8B1A');
+  txt.setAttribute('width', '2.8');
+  txt.setAttribute('opacity', '0');
+  txt.setAttribute('font', 'mozillavr');
+  txt.setAttribute('animation__fly',     `property: position; to: ${endX} ${endY} ${endZ}; dur: 650; easing: easeOutBack`);
+  txt.setAttribute('animation__opacity', `property: text.opacity; from: 0; to: 1; dur: 400; delay: 80; easing: easeInQuad`);
+  document.querySelector('a-scene').appendChild(txt);
+  playWhooshSound();
+}
+
+// Nod detection — hits the currently gazed rock
 function startNodDetection() {
   const camera = document.getElementById('main-camera');
   let lastNodTime = 0;
-  const COOLDOWN_MS = 400;
-  const NOD_DOWN_THRESHOLD = 0.44; // ~25 degrees
-  const NOD_REST_THRESHOLD = 0.17; // ~10 degrees
+  const COOLDOWN_MS    = 380;
+  const NOD_THRESHOLD  = 0.44;
+  const REST_THRESHOLD = 0.17;
   let wasResting = true;
 
   function checkNod() {
-    if (!gameActive || currentGame !== 'clt') return;
-
+    if (!gameActive) return;
     const pitch = camera.object3D.rotation.x;
-
-    if (wasResting && pitch < -NOD_DOWN_THRESHOLD) {
-      // Looking down past threshold
+    if (wasResting && pitch < -NOD_THRESHOLD) {
       const now = Date.now();
       if (now - lastNodTime > COOLDOWN_MS) {
-        registerHit();
+        const target = gazeTarget || rocks.find(r => r.alive);
+        if (target) registerHit(target);
         lastNodTime = now;
-        wasResting = false;
+        wasResting  = false;
       }
     }
-
-    if (pitch > -NOD_REST_THRESHOLD) {
-      wasResting = true;
-    }
-
+    if (pitch > -REST_THRESHOLD) wasResting = true;
     nodDetectionRAF = requestAnimationFrame(checkNod);
   }
   nodDetectionRAF = requestAnimationFrame(checkNod);
@@ -781,21 +968,21 @@ function endGame() {
   stopGame();
   hideAllScreens();
 
-  if (nodDetectionRAF) { cancelAnimationFrame(nodDetectionRAF); nodDetectionRAF = null; }
-
-  const pct = Math.round((destroyedFragments / totalFragments) * 100);
   if (completionTime !== null) {
-    $('result-title').textContent = 'CLT Libertado!';
-    $('result-score-value').textContent = score + ' pts';
-    $('result-detail').textContent = `Tempo: ${completionTime}s | 100% revelado`;
-    lastResult = { game: 'clt', score, time: completionTime };
-    pushScoreToPending('clt', score, completionTime);
+    // Todas barreiras destruídas — bônus de conclusão
+    const bonus = Math.round(score * 0.5) + (40 - completionTime) * 20;
+    const finalScore = score + bonus;
+    $('result-title').textContent = '🏆 Barreiras Destruídas!';
+    $('result-score-value').textContent = finalScore + ' pts';
+    $('result-detail').textContent = `Todas as ${totalRocks} barreiras em ${completionTime}s! +${bonus} bônus`;
+    lastResult = { game: 'clt', score: finalScore, time: completionTime };
+    pushScoreToPending('clt', finalScore, completionTime);
   } else {
     $('result-title').textContent = 'Tempo Esgotado!';
     $('result-score-value').textContent = score + ' pts';
-    $('result-detail').textContent = `${pct}% revelado em 60s`;
-    lastResult = { game: 'clt', score, time: 60 };
-    pushScoreToPending('clt', score, 60);
+    $('result-detail').textContent = `${rocksDestroyed} de ${totalRocks} barreiras reveladas em 40s`;
+    lastResult = { game: 'clt', score, time: 40 };
+    pushScoreToPending('clt', score, 40);
   }
 
   resultScreen.classList.add('active');
