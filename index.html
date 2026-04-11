@@ -780,6 +780,9 @@ function beginCLTOuro() {
 }
 
 function spawnRocks() {
+  // Clean up any word texts left from previous game
+  document.querySelectorAll('a-scene [data-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
+
   const container = $('rock-container');
   while (container.firstChild) container.removeChild(container.firstChild);
   rocks = [];
@@ -874,28 +877,36 @@ function shatterRock(rock) {
   const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
   const scene = document.querySelector('a-scene');
 
-  // Spawn 8 fragments flying outward
+  // Spawn 8 fragments — append FIRST, animate AFTER (A-Frame needs element in DOM)
   for (let i = 0; i < 8; i++) {
-    const frag = document.createElement('a-box');
-    const sz = (0.04 + Math.random() * 0.08).toFixed(3);
-    const fx = (p.x + outX*(0.6+Math.random()*1.2) + (Math.random()-0.5)*0.7).toFixed(2);
-    const fy = (p.y + Math.random()*1.1 - 0.1).toFixed(2);
-    const fz = (p.z + outZ*(0.6+Math.random()*1.2) + (Math.random()-0.5)*0.7).toFixed(2);
+    const sz = (0.05 + Math.random() * 0.09).toFixed(3);
+    const fx = (p.x + outX*(0.7+Math.random()*1.3) + (Math.random()-0.5)*0.8).toFixed(2);
+    const fy = (p.y + Math.random()*1.2).toFixed(2);
+    const fz = (p.z + outZ*(0.7+Math.random()*1.3) + (Math.random()-0.5)*0.8).toFixed(2);
     const rx = Math.floor(Math.random()*360), ry = Math.floor(Math.random()*360);
+
+    const frag = document.createElement('a-box');
     frag.setAttribute('width', sz); frag.setAttribute('height', sz); frag.setAttribute('depth', sz);
     frag.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
-    frag.setAttribute('material', 'color: #7A6548; roughness: 0.9; transparent: true; opacity: 1');
-    frag.setAttribute('animation__fly',    `property: position; to: ${fx} ${fy} ${fz}; dur: 580; easing: easeOutQuad`);
-    frag.setAttribute('animation__rot',    `property: rotation; to: ${rx} ${ry} 0; dur: 580`);
-    frag.setAttribute('animation__fade',   `property: material.opacity; to: 0; dur: 480; delay: 100; easing: easeInQuad`);
-    scene.appendChild(frag);
-    setTimeout(() => { if (frag.parentNode) frag.parentNode.removeChild(frag); }, 650);
+    frag.setAttribute('color', '#7A6548');
+    frag.setAttribute('material', 'roughness: 0.92; flatShading: true');
+    scene.appendChild(frag); // ← append FIRST so A-Frame initializes the element
+
+    // Set animations AFTER append (next microtask)
+    setTimeout(() => {
+      frag.setAttribute('animation__fly',    `property: position; to: ${fx} ${fy} ${fz}; dur: 560; easing: easeOutQuad`);
+      frag.setAttribute('animation__rot',    `property: rotation; to: ${rx} ${ry} 0; dur: 560`);
+      frag.setAttribute('animation__shrink', `property: scale; to: 0.001 0.001 0.001; dur: 500; delay: 80; easing: easeInQuad`);
+    }, 0);
+
+    // Remove from DOM after animation completes
+    setTimeout(() => { if (frag.parentNode) frag.parentNode.removeChild(frag); }, 680);
   }
 
   // Remove rock entity
   if (rock.el.parentNode) rock.el.parentNode.removeChild(rock.el);
 
-  // Reveal word — flies from rock position outward
+  // Reveal word — flies outward from rock position
   revealWord(rock);
   playShatterSound();
 
@@ -914,25 +925,34 @@ function shatterRock(rock) {
 }
 
 function revealWord(rock) {
-  const p   = rock.pos;
+  const p    = rock.pos;
   const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
-  const endX = (p.x + outX * 1.4).toFixed(2);
-  const endY = (p.y + 1.1).toFixed(2);
-  const endZ = (p.z + outZ * 1.4).toFixed(2);
+  // Final resting position: further out and higher than rock
+  const endX = (p.x + outX * 1.5).toFixed(2);
+  const endY = (p.y + 1.2).toFixed(2);
+  const endZ = (p.z + outZ * 1.5).toFixed(2);
   const rotY = (180 - rock.def.angle);
 
   const txt = document.createElement('a-text');
   txt.setAttribute('value', rock.def.word);
   txt.setAttribute('position', `${p.x.toFixed(2)} ${p.y.toFixed(2)} ${p.z.toFixed(2)}`);
   txt.setAttribute('rotation', `0 ${rotY} 0`);
+  txt.setAttribute('scale', '0.01 0.01 0.01'); // start invisible via scale
   txt.setAttribute('align', 'center');
   txt.setAttribute('color', '#FF8B1A');
-  txt.setAttribute('width', '2.8');
-  txt.setAttribute('opacity', '0');
+  txt.setAttribute('width', '3.0');
   txt.setAttribute('font', 'mozillavr');
-  txt.setAttribute('animation__fly',     `property: position; to: ${endX} ${endY} ${endZ}; dur: 650; easing: easeOutBack`);
-  txt.setAttribute('animation__opacity', `property: text.opacity; from: 0; to: 1; dur: 400; delay: 80; easing: easeInQuad`);
-  document.querySelector('a-scene').appendChild(txt);
+  txt.setAttribute('data-word', 'true'); // marker for cleanup on restart
+  document.querySelector('a-scene').appendChild(txt); // append FIRST
+
+  // Animate after element is in DOM
+  setTimeout(() => {
+    // Scale pop: 0.01 → 1 with easeOutBack gives a satisfying "burst" feel
+    txt.setAttribute('animation__scale', `property: scale; to: 1 1 1; dur: 380; easing: easeOutBack`);
+    // Fly outward from rock position to final position
+    txt.setAttribute('animation__fly',   `property: position; to: ${endX} ${endY} ${endZ}; dur: 620; easing: easeOutCubic`);
+  }, 0);
+
   playWhooshSound();
 }
 
