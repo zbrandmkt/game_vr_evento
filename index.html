@@ -436,6 +436,7 @@
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
     <img id="logo-presenca" src="assets/logo-branco.png" crossorigin="anonymous">
+    <img id="rock-texture"  src="assets/rocha.jpg"         crossorigin="anonymous">
     <a-asset-item id="picareta-model" src="assets/picareta.glb"></a-asset-item>
   </a-assets>
 
@@ -1116,14 +1117,15 @@ function beginGeoGame() {
   game3.setAttribute('visible', true);
   game2World.setAttribute('visible', false);
 
-  // Cosmos sky
+  // Skybox: caverna aparece pelos buracos conforme painéis são quebrados
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('visible', true);
-  skyEl.setAttribute('src', ''); // clear cave skybox
-  skyEl.setAttribute('color', '#0A0200'); // will be updated as panels break
+  skyEl.setAttribute('src', '#skybox-cave');
+  skyEl.setAttribute('material', 'shader: flat; src: #skybox-cave; fog: false');
+  skyEl.setAttribute('rotation', '0 90 0');
+  skyEl.setAttribute('color', '#ffffff');
 
-  // Show stars
-  document.getElementById('shared-env').setAttribute('visible', true);
+  document.getElementById('shared-env').setAttribute('visible', false);
 
   // Show pickaxe
   const picareta = $('picareta-fp');
@@ -1145,6 +1147,14 @@ function spawnGeode() {
   const container = document.getElementById('geode-container');
   while (container.firstChild) container.removeChild(container.firstChild);
   geoPanels = [];
+
+  // Carrega textura de rocha do asset já no DOM
+  const rockImgEl = document.getElementById('rock-texture');
+  const rockTex = new THREE.Texture(rockImgEl);
+  rockTex.needsUpdate = true;
+  rockTex.wrapS = THREE.RepeatWrapping;
+  rockTex.wrapT = THREE.RepeatWrapping;
+  rockTex.repeat.set(1, 1);
 
   // IcosahedronGeometry detail=0 → 20 triangular faces
   const sphereGeo = new THREE.IcosahedronGeometry(5.0, 0);
@@ -1188,14 +1198,16 @@ function spawnGeode() {
       verts3[2].x, verts3[2].y, verts3[2].z,
     ]);
     triGeo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+    // UV: mapeamento triângulo estático 0,0 / 1,0 / 0.5,1
+    triGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0,0, 1,0, 0.5,1]), 2));
     triGeo.computeVertexNormals();
 
-    // Rock color: word panels slightly golden tint
-    const rockColor = hasWord ? 0x7A6030 : 0x6B5842;
+    // Material com textura de rocha; word panels têm leve tint dourado por cima
     const mat = new THREE.MeshStandardMaterial({
-      color: rockColor,
-      roughness: 0.92, metalness: hasWord ? 0.15 : 0.04,
-      flatShading: true, side: THREE.BackSide
+      map: rockTex,
+      color: hasWord ? 0xBB9A60 : 0xFFFFFF, // tint multiplicativo — dourado vs neutro
+      roughness: 0.92, metalness: hasWord ? 0.18 : 0.04,
+      flatShading: false, side: THREE.BackSide
     });
     const mesh = new THREE.Mesh(triGeo, mat);
 
@@ -1361,14 +1373,9 @@ function updateGeoLighting() {
   const destroyed = geoPanels.filter(p => !p.alive).length;
   const progress = total > 0 ? destroyed / total : 0;
 
-  // Ambient intensity: 0.35 (dark cave) → 1.4 (bright golden cosmos)
-  const intensity = (0.35 + progress * 1.05).toFixed(2);
+  // Luz ambiente: fraca no início, vai aumentando conforme buracos aparecem
+  const intensity = (0.35 + progress * 1.0).toFixed(2);
   document.getElementById('geo-ambient').setAttribute('light', `type: ambient; color: #FF9A30; intensity: ${intensity}`);
-
-  // Sky color: very dark → deep orange cosmos
-  const lightness = Math.floor(2 + progress * 12);
-  const saturation = Math.floor(60 + progress * 30);
-  document.getElementById('game-sky').setAttribute('color', `hsl(25, ${saturation}%, ${lightness}%)`);
 }
 
 function revealWord(rock) {
