@@ -594,8 +594,8 @@ const crosshairEl   = $('crosshair');
 const narrationSub  = $('narration-sub');
 const fadeOverlay   = $('fade-overlay');
 const gazeRing      = $('gaze-ring');
-const gazeRingFill  = $('gaze-ring-fill');
 const mineHint      = $('mine-hint');
+// gazeRingFill é SVG — buscado inline para evitar null em alguns browsers
 
 // ===== SPLASH: pede giroscópio e entra no menu =====
 function requestGyroAndEnter() {
@@ -933,7 +933,7 @@ function startMineGazeDwell() {
 
       // Update ring fill (stroke-dashoffset: 175.9 = empty, 0 = full)
       const dashOffset = 175.9 * (1 - progress);
-      gazeRingFill.setAttribute('stroke-dashoffset', dashOffset.toFixed(1));
+      const _fill1 = document.getElementById('gaze-ring-fill'); if (_fill1) _fill1.setAttribute('stroke-dashoffset', dashOffset.toFixed(1));
 
       if (elapsed >= MINE_GAZE_DWELL_MS) {
         // Dwell complete — trigger transition
@@ -944,7 +944,7 @@ function startMineGazeDwell() {
     } else {
       // Not looking — reset
       mineGazeStartTime = null;
-      gazeRingFill.setAttribute('stroke-dashoffset', '175.9');
+      const _fill2 = document.getElementById('gaze-ring-fill'); if (_fill2) _fill2.setAttribute('stroke-dashoffset', '175.9');
     }
 
     mineGazeRAF = requestAnimationFrame(checkMineGaze);
@@ -956,7 +956,7 @@ function stopMineGazeDwell() {
   if (mineGazeRAF) { cancelAnimationFrame(mineGazeRAF); mineGazeRAF = null; }
   mineHint.classList.remove('active');
   gazeRing.classList.remove('active');
-  gazeRingFill.setAttribute('stroke-dashoffset', '175.9');
+  const _fill2 = document.getElementById('gaze-ring-fill'); if (_fill2) _fill2.setAttribute('stroke-dashoffset', '175.9');
   mineGazeStartTime = null;
 }
 
