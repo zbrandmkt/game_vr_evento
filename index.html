@@ -108,12 +108,6 @@
     .menu-btn.secondary:hover, .menu-btn.secondary:active {
       background: rgba(255,139,26,0.15);
     }
-    .menu-game-label {
-      font-size: 10px; color: rgba(255,255,255,0.35);
-      letter-spacing: 2px; text-transform: uppercase;
-      margin-bottom: 10px; margin-top: 8px;
-    }
-
     .menu-footer {
       position: absolute; bottom: 28px; text-align: center;
       font-size: 11px; color: #ffffff;
@@ -334,9 +328,7 @@
     <img class="menu-logo" src="assets/logo-branco.png" alt="Presenca" style="width:240px;height:auto;margin-bottom:12px;">
     <div class="menu-subtitle">O futuro do consignado é com Presença</div>
 
-    <div class="menu-game-label">Escolha o jogo</div>
-    <button class="menu-btn" onclick="startGame('clt')">⛏️ Quebra as Barreiras</button>
-    <button class="menu-btn secondary" onclick="startGame('geo')">💎 Geode Presença</button>
+    <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
 
     <div class="menu-footer">
       Workshop Corban360 — 16 e 17 de Abril, 2026
@@ -405,7 +397,7 @@
   <!-- RANKING SCREEN -->
   <div id="ranking-screen">
     <img src="assets/logo-branco.png" alt="Presenca" style="width:120px;height:auto;">
-    <div class="ranking-title">Ranking — CLT é Ouro</div>
+    <div class="ranking-title">Ranking — Geode Presença</div>
     <div class="ranking-table" id="ranking-table">
       <div class="ranking-row header">
         <div class="ranking-pos">#</div>
@@ -463,21 +455,6 @@
     </a-camera>
   </a-entity>
 
-  <!-- ===== SHARED ENVIRONMENT (Stars) ===== -->
-  <a-entity id="shared-env" visible="false">
-    <a-entity id="star-field" star-field></a-entity>
-  </a-entity>
-
-  <!-- ===== GAME 2 WORLD: CLT e Ouro — Quebra as Barreiras ===== -->
-  <a-entity id="game2-world" visible="true">
-    <a-light type="point" color="#FF6600" intensity="0.6" position="0 0.5 0" distance="12"></a-light>
-    <a-light type="point" color="#FF4400" intensity="0.25" position="-4 1 -4" distance="10"></a-light>
-    <a-light type="point" color="#FF4400" intensity="0.25" position="4 1 4" distance="10"></a-light>
-    <a-light type="ambient" color="#2a1200" intensity="0.5"></a-light>
-    <!-- Rock container (position 0,0,0 → rocks use world positions) -->
-    <a-entity id="rock-container"></a-entity>
-  </a-entity>
-
   <!-- ===== GAME 3 WORLD: Geode Presença ===== -->
   <a-entity id="game3-world" visible="false">
     <a-light type="ambient" id="geo-ambient" color="#FF8B1A" intensity="0.35"></a-light>
@@ -494,78 +471,6 @@
 // PRESENCA VR GAME - COMPLETE GAME LOGIC
 // ===================================================================
 
-// ===== DEFORMED ROCK COMPONENT =====
-AFRAME.registerComponent('deformed-rock', {
-  schema: {
-    seed:       { type: 'int',    default: 42 },
-    radius:     { type: 'number', default: 0.38 },
-    difficulty: { type: 'int',    default: 2 }   // 2=easy 3=med 4=hard
-  },
-  init: function() {
-    const { seed, radius, difficulty } = this.data;
-    let s = seed;
-    function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
-
-    const geo = new THREE.SphereGeometry(radius, 10, 8);
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const f = radius * 0.42;
-      pos.setX(i, pos.getX(i) + (rnd()-0.5)*f);
-      pos.setY(i, pos.getY(i) + (rnd()-0.5)*f*0.75);
-      pos.setZ(i, pos.getZ(i) + (rnd()-0.5)*f);
-    }
-    geo.computeVertexNormals();
-
-    const colMap = { 2: 0x7A6548, 3: 0x5E4530, 4: 0x4A2E18 };
-    const mat = new THREE.MeshStandardMaterial({
-      color: colMap[difficulty] || 0x7A6548,
-      roughness: 0.92, metalness: 0.06, flatShading: true
-    });
-    this.el.setObject3D('rock', new THREE.Mesh(geo, mat));
-
-    // Hard rocks glow orange-red
-    if (difficulty >= 3) {
-      const glowEl = document.createElement('a-light');
-      glowEl.setAttribute('type', 'point');
-      glowEl.setAttribute('color', difficulty === 4 ? '#FF3300' : '#FF6600');
-      glowEl.setAttribute('intensity', '0.35');
-      glowEl.setAttribute('distance', '1.8');
-      this.el.appendChild(glowEl);
-    }
-  },
-  shake: function() {
-    const orig = this.el.object3D.position.clone();
-    let n = 0;
-    const iv = setInterval(() => {
-      this.el.object3D.position.set(
-        orig.x + (Math.random()-0.5)*0.1,
-        orig.y + (Math.random()-0.5)*0.06,
-        orig.z + (Math.random()-0.5)*0.1
-      );
-      if (++n >= 7) { clearInterval(iv); this.el.object3D.position.copy(orig); }
-    }, 28);
-  }
-});
-
-// ===== STAR FIELD COMPONENT =====
-AFRAME.registerComponent('star-field', {
-  init: function() {
-    const geometry = new THREE.BufferGeometry();
-    const vertices = [];
-    for (let i = 0; i < 400; i++) {
-      vertices.push(
-        (Math.random() - 0.5) * 40,
-        Math.random() * 15 + 2,
-        (Math.random() - 0.5) * 40
-      );
-    }
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, sizeAttenuation: true });
-    const stars = new THREE.Points(geometry, material);
-    this.el.setObject3D('stars', stars);
-  }
-});
-
 // ===== FIREBASE PUSH =====
 function pushScoreToPending(gameType, scoreValue, timeUsed) {
   const fb = window._fb;
@@ -575,23 +480,6 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
     .then(() => console.log('[Firebase] Score enviado para promotor.'))
     .catch(e => console.error('[Firebase] Erro:', e));
 }
-
-// ===== ROCK POSITIONS — 9 slots fixos em 360° com 3 zonas de altura =====
-const ROCK_RADIUS = 3.0;
-const ROCK_POSITIONS = [
-  // Eye level (h 1.45–1.70m): jogador olha reto
-  { angle: 0,   h: 1.55 },
-  { angle: 40,  h: 1.45 },
-  { angle: 175, h: 1.60 },
-  { angle: 265, h: 1.50 },
-  { angle: 345, h: 1.65 },
-  // High — olhar para cima ~22° (h 2.80–2.90m)
-  { angle: 80,  h: 2.85 },
-  { angle: 220, h: 2.80 },
-  // Floor — olhar para baixo ~20° (h 0.45–0.55m)
-  { angle: 130, h: 0.50 },
-  { angle: 310, h: 0.45 },
-];
 
 // ===== ROCK WORDS — pool de palavras atribuídas aleatoriamente a cada slot =====
 const ROCK_WORDS = [
@@ -607,20 +495,14 @@ const ROCK_WORDS = [
 ];
 
 // ===== GAME STATE =====
-let currentGame = 'clt';
+const currentGame = 'geo';
 let gameActive  = false;
 let gameTimer   = null;
 let timeRemaining = 40;
 let score = 0;
-let rocks = [];
-let rocksDestroyed = 0;
 let completionTime = null;
-let gazeTarget = null;
-let gazingRAF = null;
 let hitCooldown = false;
 let lastResult = { game: null, score: 0, time: 0 };
-// Shuffled word index pool — ensures variety across respawns
-let wordPool = [];
 
 // ===== GEO GAME STATE =====
 let geoPanels = [];
@@ -645,7 +527,6 @@ const backMenuBtn   = $('back-menu-btn');
 const vrEnterBtn    = $('vr-enter-btn');
 const crosshairEl   = $('crosshair');
 const narrationSub  = $('narration-sub');
-const game2World    = $('game2-world');
 
 // ===== SPLASH: pede giroscópio e entra no menu =====
 function requestGyroAndEnter() {
@@ -676,8 +557,7 @@ function requestGyroAndEnter() {
 }
 
 // ===== MENU FUNCTIONS =====
-function startGame(type) {
-  currentGame = type || 'clt';
+function startGame() {
   _doStartGame();
 }
 
@@ -694,12 +574,11 @@ function backToMenu() {
   mainMenu.classList.remove('hidden');
   backMenuBtn.style.display = 'none';
   vrEnterBtn.style.display = 'none';
-  // Mantém caverna visível no menu — ambiente sempre ativo
-  game2World.setAttribute('visible', true);
   document.getElementById('game3-world').setAttribute('visible', false);
   document.getElementById('game-sky').setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
-  document.getElementById('shared-env').setAttribute('visible', false);
+  document.getElementById('game-sky').setAttribute('src', '#skybox-gold');
+  document.getElementById('game-sky').setAttribute('material', 'shader: flat; src: #skybox-gold; fog: false');
+  document.getElementById('game-sky').setAttribute('rotation', '0 90 0');
 }
 
 function hideAllScreens() {
@@ -784,17 +663,14 @@ function beginGame() {
   gameActive    = true;
   score         = 0;
   timeRemaining = 40;
-  rocksDestroyed = 0;
   completionTime = null;
-  gazeTarget    = null;
 
-  resetCameraToCenter(); // garante que jogador sempre olha para o ponto central do skybox
+  resetCameraToCenter();
 
   gameHud.classList.add('active');
   hudScore.classList.add('active');
   updateHUD();
-  if (currentGame === 'geo') beginGeoGame();
-  else beginCLTOuro();
+  beginGeoGame();
 
   gameTimer = setInterval(() => {
     timeRemaining--;
@@ -806,7 +682,6 @@ function beginGame() {
 function stopGame() {
   gameActive = false;
   if (gameTimer)    { clearInterval(gameTimer); gameTimer = null; }
-  if (gazingRAF)    { cancelAnimationFrame(gazingRAF); gazingRAF = null; }
   if (geoGazingRAF) { cancelAnimationFrame(geoGazingRAF); geoGazingRAF = null; }
 }
 
@@ -816,11 +691,7 @@ function updateHUD() {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   hudTimer.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
-  if (currentGame === 'geo') {
-    hudCenter.innerHTML = `<span class="hud-progress">${geoWordsRevealed} reveladas</span>`;
-  } else {
-    hudCenter.innerHTML = `<span class="hud-progress">${rocksDestroyed} reveladas</span>`;
-  }
+  hudCenter.innerHTML = `<span class="hud-progress">${geoWordsRevealed} reveladas</span>`;
 }
 
 // ===== WEB AUDIO =====
@@ -864,94 +735,6 @@ function playWhooshSound() {
   osc.start(); osc.stop(audioCtx.currentTime + 0.35);
 }
 
-// ===== GAME 2: QUEBRA AS BARREIRAS =====
-function beginCLTOuro() {
-  game2World.setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('src', '#skybox-cave');
-  document.getElementById('shared-env').setAttribute('visible', false);
-  touchHitZone.classList.add('active');
-  crosshairEl.classList.add('active');
-
-  const picareta = $('picareta-fp');
-  picareta.setAttribute('visible', true);
-  // Reset para posição/rotação de descanso (garante estado limpo entre partidas)
-  picareta.setAttribute('position', PICK_REST_POS);
-  picareta.setAttribute('rotation', PICK_REST_ROT);
-
-  spawnRocks();
-  startGazeLoop();
-  updateHUD();
-}
-
-function getRandomWord() {
-  // Refill pool when empty to guarantee variety
-  if (wordPool.length === 0) {
-    wordPool = ROCK_WORDS.map((_, i) => i);
-    // Shuffle
-    for (let i = wordPool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [wordPool[i], wordPool[j]] = [wordPool[j], wordPool[i]];
-    }
-  }
-  return ROCK_WORDS[wordPool.pop()];
-}
-
-function spawnRocks() {
-  // Clean up any word texts left from previous game
-  document.querySelectorAll('a-scene [data-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
-
-  const container = $('rock-container');
-  while (container.firstChild) container.removeChild(container.firstChild);
-  rocks = [];
-  wordPool = []; // reset pool
-
-  ROCK_POSITIONS.forEach((slot, i) => {
-    const word = getRandomWord();
-    const rad = slot.angle * Math.PI / 180;
-    const x = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
-    const y = slot.h;
-    const z = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
-
-    const el = document.createElement('a-entity');
-    el.setAttribute('deformed-rock', `seed: ${i*7+13}; radius: 0.40; difficulty: ${word.hits}`);
-    el.setAttribute('position', `${x} ${y} ${z}`);
-    container.appendChild(el);
-
-    rocks.push({ el, word, hitsLeft: word.hits, alive: true, pos: {x, y, z}, slotIdx: i, angle: slot.angle });
-  });
-}
-
-// Gaze targeting — finds which rock the player is looking at
-function startGazeLoop() {
-  const camera = document.getElementById('main-camera');
-  const GAZE_ANGLE = 0.28; // ~16° cone
-
-  function loop() {
-    if (!gameActive) return;
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
-    const camPos = new THREE.Vector3();
-    camera.object3D.getWorldPosition(camPos);
-
-    let best = null, bestAngle = GAZE_ANGLE;
-    rocks.forEach(rock => {
-      if (!rock.alive) return;
-      const toRock = new THREE.Vector3(
-        rock.pos.x - camPos.x, rock.pos.y - camPos.y, rock.pos.z - camPos.z
-      ).normalize();
-      const angle = dir.angleTo(toRock);
-      if (angle < bestAngle) { bestAngle = angle; best = rock; }
-    });
-
-    gazeTarget = best;
-    if (best) crosshairEl.classList.add('on-target');
-    else      crosshairEl.classList.remove('on-target');
-
-    gazingRAF = requestAnimationFrame(loop);
-  }
-  gazingRAF = requestAnimationFrame(loop);
-}
-
 // Posição de descanso da picareta — deve bater com os atributos do HTML
 const PICK_REST_ROT  = '-15 150 20';
 const PICK_STRIKE_ROT = '60 150 20'; // lâmina vai para frente (X +75°)
@@ -980,30 +763,13 @@ function swingPickaxe() {
   }, 0);
 }
 
-function registerHit(rock) {
-  if (!gameActive || !rock || !rock.alive) return;
-  rock.hitsLeft--;
-
-  if (rock.hitsLeft <= 0) {
-    shatterRock(rock);
-  } else {
-    playHitSound();
-    const comp = rock.el.components['deformed-rock'];
-    if (comp && comp.shake) comp.shake();
-    showHitFeedback();
-  }
-}
-
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
-  const target = currentGame === 'geo' ? geoGazeTarget : gazeTarget;
+  const target = geoGazeTarget;
   if (!target) return;
   hitCooldown = true;
   swingPickaxe();
-  setTimeout(() => {
-    if (currentGame === 'geo') registerGeoHit(target);
-    else registerHit(target);
-  }, 250);
+  setTimeout(() => { registerGeoHit(target); }, 250);
   setTimeout(() => { hitCooldown = false; }, 500);
 }
 
@@ -1014,84 +780,6 @@ function showHitFeedback() {
   hitFeedback.style.left = (38 + Math.random() * 24) + '%';
   hitFeedback.style.top  = (38 + Math.random() * 24) + '%';
   setTimeout(() => { hitFeedback.style.display = 'none'; }, 180);
-}
-
-function shatterRock(rock) {
-  rock.alive = false;
-  rocksDestroyed++;
-  const p = rock.pos;
-  const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
-  const scene = document.querySelector('a-scene');
-
-  // Spawn 8 fragments — append FIRST, animate AFTER (A-Frame needs element in DOM)
-  for (let i = 0; i < 8; i++) {
-    const sz = (0.05 + Math.random() * 0.09).toFixed(3);
-    const fx = (p.x + outX*(0.7+Math.random()*1.3) + (Math.random()-0.5)*0.8).toFixed(2);
-    const fy = (p.y + Math.random()*1.2).toFixed(2);
-    const fz = (p.z + outZ*(0.7+Math.random()*1.3) + (Math.random()-0.5)*0.8).toFixed(2);
-    const rx = Math.floor(Math.random()*360), ry = Math.floor(Math.random()*360);
-
-    const frag = document.createElement('a-box');
-    frag.setAttribute('width', sz); frag.setAttribute('height', sz); frag.setAttribute('depth', sz);
-    frag.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
-    frag.setAttribute('color', '#7A6548');
-    frag.setAttribute('material', 'roughness: 0.92; flatShading: true');
-    scene.appendChild(frag); // ← append FIRST so A-Frame initializes the element
-
-    // Set animations AFTER append (next microtask)
-    setTimeout(() => {
-      frag.setAttribute('animation__fly',    `property: position; to: ${fx} ${fy} ${fz}; dur: 560; easing: easeOutQuad`);
-      frag.setAttribute('animation__rot',    `property: rotation; to: ${rx} ${ry} 0; dur: 560`);
-      frag.setAttribute('animation__shrink', `property: scale; to: 0.001 0.001 0.001; dur: 500; delay: 80; easing: easeInQuad`);
-    }, 0);
-
-    // Remove from DOM after animation completes
-    setTimeout(() => { if (frag.parentNode) frag.parentNode.removeChild(frag); }, 680);
-  }
-
-  // Remove rock entity
-  if (rock.el.parentNode) rock.el.parentNode.removeChild(rock.el);
-
-  // Reveal word — flies outward from rock position
-  revealWord(rock);
-  playShatterSound();
-
-  // Score: pts + time bonus
-  score += rock.word.pts;
-  if (timeRemaining > 20) score += 50;
-  else if (timeRemaining > 10) score += 25;
-
-  updateHUD();
-
-  // Respawn same slot after 3.5s (player will be looking elsewhere by then)
-  const slotIdx = rock.slotIdx;
-  setTimeout(() => respawnSlot(slotIdx), 6000);
-}
-
-function respawnSlot(slotIdx) {
-  if (!gameActive) return;
-
-  const slot = ROCK_POSITIONS[slotIdx];
-  const word = getRandomWord();
-  const rad = slot.angle * Math.PI / 180;
-  const x = parseFloat((Math.sin(rad) * ROCK_RADIUS).toFixed(3));
-  const y = slot.h;
-  const z = parseFloat((-Math.cos(rad) * ROCK_RADIUS).toFixed(3));
-  const seed = Math.floor(Math.random() * 9999);
-
-  const el = document.createElement('a-entity');
-  el.setAttribute('deformed-rock', `seed: ${seed}; radius: 0.40; difficulty: ${word.hits}`);
-  el.setAttribute('position', `${x} ${y} ${z}`);
-  el.setAttribute('scale', '0.01 0.01 0.01');
-  $('rock-container').appendChild(el);
-
-  // Pop-in scale animation
-  setTimeout(() => {
-    el.setAttribute('animation__spawn', 'property: scale; to: 1 1 1; dur: 420; easing: easeOutBack');
-  }, 0);
-
-  const rock = { el, word, hitsLeft: word.hits, alive: true, pos: { x, y, z }, slotIdx, angle: slot.angle };
-  rocks.push(rock);
 }
 
 // ===== GAME 3: GEODE PRESENÇA =====
@@ -1129,7 +817,6 @@ function createCosmosSkyTexture() {
 function beginGeoGame() {
   const game3 = document.getElementById('game3-world');
   game3.setAttribute('visible', true);
-  game2World.setAttribute('visible', false);
 
   // Skybox gold: aparece pelos buracos conforme painéis são quebrados
   // rotation "0 90 0" = jogador olha para o centro horizontal da equirectangular
@@ -1139,8 +826,6 @@ function beginGeoGame() {
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-gold; fog: false');
   skyEl.setAttribute('rotation', '0 90 0');
   skyEl.setAttribute('color', '#ffffff');
-
-  document.getElementById('shared-env').setAttribute('visible', false);
 
   // Show pickaxe
   const picareta = $('picareta-fp');
@@ -1252,7 +937,7 @@ function startGeoGazeLoop() {
   const GEO_GAZE_ANGLE = 0.30;
 
   function loop() {
-    if (!gameActive || currentGame !== 'geo') return;
+    if (!gameActive) return;
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
     const camPos = new THREE.Vector3();
     camera.object3D.getWorldPosition(camPos);
@@ -1392,53 +1077,15 @@ function updateGeoLighting() {
   document.getElementById('geo-ambient').setAttribute('light', `type: ambient; color: #FF9A30; intensity: ${intensity}`);
 }
 
-function revealWord(rock) {
-  const p    = rock.pos;
-  const outX = p.x / ROCK_RADIUS, outZ = p.z / ROCK_RADIUS;
-  // Final resting position: further out and higher than rock
-  const endX = (p.x + outX * 1.5).toFixed(2);
-  const endY = (p.y + 1.2).toFixed(2);
-  const endZ = (p.z + outZ * 1.5).toFixed(2);
-  const rotY = (180 - rock.angle);
-
-  const txt = document.createElement('a-text');
-  txt.setAttribute('value', rock.word.word);
-  txt.setAttribute('position', `${p.x.toFixed(2)} ${p.y.toFixed(2)} ${p.z.toFixed(2)}`);
-  txt.setAttribute('rotation', `0 ${rotY} 0`);
-  txt.setAttribute('scale', '0.01 0.01 0.01'); // start invisible via scale
-  txt.setAttribute('align', 'center');
-  txt.setAttribute('color', '#FF8B1A');
-  txt.setAttribute('width', '3.0');
-  txt.setAttribute('font', 'mozillavr');
-  txt.setAttribute('data-word', 'true'); // marker for cleanup on restart
-  document.querySelector('a-scene').appendChild(txt); // append FIRST
-
-  // Animate after element is in DOM
-  setTimeout(() => {
-    // Scale pop: 0.01 → 1 with easeOutBack gives a satisfying "burst" feel
-    txt.setAttribute('animation__scale', `property: scale; to: 1 1 1; dur: 380; easing: easeOutBack`);
-    // Fly outward from rock position to final position
-    txt.setAttribute('animation__fly',   `property: position; to: ${endX} ${endY} ${endZ}; dur: 620; easing: easeOutCubic`);
-  }, 0);
-
-  playWhooshSound();
-}
-
 // ===== END GAME =====
 function endGame() {
   stopGame();
   hideAllScreens();
   $('result-title').textContent = 'Tempo Esgotado!';
   $('result-score-value').textContent = score + ' pts';
-  if (currentGame === 'geo') {
-    $('result-detail').textContent = `${geoWordsRevealed} painel${geoWordsRevealed !== 1 ? 'is' : ''} revelado${geoWordsRevealed !== 1 ? 's' : ''} em 40s`;
-    lastResult = { game: 'geo', score, time: 40 };
-    pushScoreToPending('geo', score, geoWordsRevealed);
-  } else {
-    $('result-detail').textContent = `${rocksDestroyed} barreira${rocksDestroyed !== 1 ? 's' : ''} revelada${rocksDestroyed !== 1 ? 's' : ''} em 40s`;
-    lastResult = { game: 'clt', score, time: 40 };
-    pushScoreToPending('clt', score, rocksDestroyed);
-  }
+  $('result-detail').textContent = `${geoWordsRevealed} painel${geoWordsRevealed !== 1 ? 'is' : ''} revelado${geoWordsRevealed !== 1 ? 's' : ''} em 40s`;
+  lastResult = { game: 'geo', score, time: 40 };
+  pushScoreToPending('geo', score, geoWordsRevealed);
   resultScreen.classList.add('active');
   $('player-name').value = '';
   $('player-phone').value = '';
@@ -1493,7 +1140,7 @@ function showRanking() {
 }
 
 function renderRankingTab() {
-  const ranking = getRanking('clt');
+  const ranking = getRanking('geo');
   const table = $('ranking-table');
 
   // Keep header, remove data rows
@@ -1528,9 +1175,9 @@ function closeRanking() {
 
 function exportCSV() {
   let csv = 'Jogo,Posicao,Nome,Telefone,Pontuacao,Tempo(s),Data\n';
-  const ranking = getRanking('clt');
+  const ranking = getRanking('geo');
   ranking.forEach((entry, i) => {
-    csv += `CLT e Ouro,${i + 1},"${entry.name}","${entry.phone || ''}",${entry.score},${entry.time},"${entry.date}"\n`;
+    csv += `Geode Presença,${i + 1},"${entry.name}","${entry.phone || ''}",${entry.score},${entry.time},"${entry.date}"\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
