@@ -435,6 +435,7 @@
   <a-assets>
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
+    <img id="skybox-gold"   src="assets/skybox_gold.jpg"   crossorigin="anonymous">
     <img id="logo-presenca" src="assets/logo-branco.png" crossorigin="anonymous">
     <img id="rock-texture"  src="assets/rocha.jpg"         crossorigin="anonymous">
     <a-asset-item id="picareta-model" src="assets/picareta.glb"></a-asset-item>
@@ -768,6 +769,17 @@ function showIntro() {
 }
 
 // ===== BEGIN GAME =====
+// Reseta câmera para olhar para o centro do skybox (Y=0 + sky rotation Y=90 = centro da equirectangular)
+function resetCameraToCenter() {
+  const cam = document.getElementById('main-camera');
+  const lc = cam.components['look-controls'];
+  if (lc) {
+    lc.pitchObject.rotation.x = 0;
+    lc.yawObject.rotation.y   = 0;
+  }
+  cam.object3D.rotation.set(0, 0, 0);
+}
+
 function beginGame() {
   gameActive    = true;
   score         = 0;
@@ -775,6 +787,8 @@ function beginGame() {
   rocksDestroyed = 0;
   completionTime = null;
   gazeTarget    = null;
+
+  resetCameraToCenter(); // garante que jogador sempre olha para o ponto central do skybox
 
   gameHud.classList.add('active');
   hudScore.classList.add('active');
@@ -1117,11 +1131,12 @@ function beginGeoGame() {
   game3.setAttribute('visible', true);
   game2World.setAttribute('visible', false);
 
-  // Skybox: caverna aparece pelos buracos conforme painéis são quebrados
+  // Skybox gold: aparece pelos buracos conforme painéis são quebrados
+  // rotation "0 90 0" = jogador olha para o centro horizontal da equirectangular
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('visible', true);
-  skyEl.setAttribute('src', '#skybox-cave');
-  skyEl.setAttribute('material', 'shader: flat; src: #skybox-cave; fog: false');
+  skyEl.setAttribute('src', '#skybox-gold');
+  skyEl.setAttribute('material', 'shader: flat; src: #skybox-gold; fog: false');
   skyEl.setAttribute('rotation', '0 90 0');
   skyEl.setAttribute('color', '#ffffff');
 
