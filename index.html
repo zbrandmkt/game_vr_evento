@@ -295,17 +295,17 @@
     /* ===== FADE OVERLAY ===== */
     #fade-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: #000; opacity: 0; pointer-events: none;
+      background: #000; opacity: 0; pointer-events: none !important;
       z-index: 19999; transition: opacity 1.5s ease;
     }
     #fade-overlay.fading { opacity: 1; }
-    #fade-overlay.visible { opacity: 1; pointer-events: all; }
+    #fade-overlay.visible { opacity: 1; pointer-events: all !important; }
 
     /* ===== GAZE RING ===== */
     #gaze-ring {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      z-index: 9997; pointer-events: none;
+      z-index: 9997; pointer-events: none !important;
       display: none;
     }
     #gaze-ring.active { display: block; }
@@ -318,7 +318,7 @@
       border-radius: 50%;
       background: rgba(255,139,26,0.8);
       box-shadow: 0 0 12px 4px rgba(255,139,26,0.5);
-      z-index: 9996; pointer-events: none;
+      z-index: 9996; pointer-events: none !important;
       display: none;
       animation: mineHintPulse 1.4s ease-in-out infinite;
     }
@@ -351,8 +351,8 @@
     <img src="assets/logo-branco.png" alt="Presenca" style="width:200px;height:auto;margin-bottom:28px;filter:drop-shadow(0 0 24px rgba(255,139,26,0.5));">
     <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:8px;letter-spacing:1px;">Workshop Corban360</div>
     <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:48px;">16 e 17 de Abril, 2026</div>
-    <button class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;">
-      🎮 Toque para Jogar
+    <button id="splash-btn" class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;opacity:0.5;pointer-events:none;">
+      ⏳ Carregando...
     </button>
     <div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.3);max-width:240px;text-align:center;line-height:1.6;">
       Será solicitada permissão para o sensor de movimento do dispositivo
@@ -476,7 +476,7 @@
   style="position:fixed;top:0;left:0;width:100%;height:100%;">
 
   <!-- ===== ASSETS ===== -->
-  <a-assets>
+  <a-assets timeout="15000">
     <img id="skybox-fora"   src="assets/skybox_fora.jpg"   crossorigin="anonymous">
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
@@ -1429,8 +1429,23 @@ $('player-phone').addEventListener('focus', function() { this.style.borderColor 
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
-  // Splash já visível por padrão — menu começa hidden
-  // (mainMenu já tem class="hidden" no HTML)
+  // Habilita botão do splash assim que A-Frame terminar de carregar os assets
+  const scene = document.querySelector('a-scene');
+  const splashBtn = document.getElementById('splash-btn');
+
+  function enableSplashBtn() {
+    splashBtn.textContent = '🎮 Toque para Jogar';
+    splashBtn.style.opacity = '1';
+    splashBtn.style.pointerEvents = 'auto';
+  }
+
+  if (scene.hasLoaded) {
+    enableSplashBtn();
+  } else {
+    scene.addEventListener('loaded', enableSplashBtn);
+    // Fallback: habilita após 6s mesmo se assets demorarem
+    setTimeout(enableSplashBtn, 6000);
+  }
 });
 
 </script>
