@@ -486,7 +486,7 @@
   </a-assets>
 
   <!-- ===== SKYBOX (global, swapped per game) ===== -->
-  <a-sky id="game-sky" src="#skybox-fora" visible="true" material="shader: flat; src: #skybox-fora; fog: false" rotation="0 90 0"></a-sky>
+  <a-sky id="game-sky" src="#skybox-fora" visible="true" material="shader: flat; src: #skybox-fora; fog: false" rotation="0 180 0"></a-sky>
 
   <!-- ===== CAMERA RIG ===== -->
   <a-entity id="camera-rig" position="0 0 0">
@@ -607,7 +607,7 @@ function requestGyroAndEnter() {
     const skyEl = document.getElementById('game-sky');
     skyEl.setAttribute('src', '#skybox-fora');
     skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-    skyEl.setAttribute('rotation', '0 90 0');
+    skyEl.setAttribute('rotation', '0 180 0');
   }
 
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -652,7 +652,7 @@ function backToMenu() {
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('src', '#skybox-fora');
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-  skyEl.setAttribute('rotation', '0 90 0');
+  skyEl.setAttribute('rotation', '0 180 0');
   skyEl.setAttribute('color', '#ffffff');
   resetCameraToCenter();
   // Make sure fade is clear
@@ -853,7 +853,7 @@ function beginPhase1() {
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('src', '#skybox-fora');
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-  skyEl.setAttribute('rotation', '0 90 0');
+  skyEl.setAttribute('rotation', '0 180 0');
   skyEl.setAttribute('color', '#ffffff');
   document.getElementById('game3-world').setAttribute('visible', false);
 
