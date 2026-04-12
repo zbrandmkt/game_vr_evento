@@ -292,6 +292,42 @@
       text-shadow: 0 0 30px rgba(255,184,0,0.8);
     }
 
+    /* ===== FADE OVERLAY ===== */
+    #fade-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; opacity: 0; pointer-events: none;
+      z-index: 19999; transition: opacity 1.5s ease;
+    }
+    #fade-overlay.fading { opacity: 1; }
+    #fade-overlay.visible { opacity: 1; pointer-events: all; }
+
+    /* ===== GAZE RING ===== */
+    #gaze-ring {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9997; pointer-events: none;
+      display: none;
+    }
+    #gaze-ring.active { display: block; }
+
+    /* ===== MINE HINT ===== */
+    #mine-hint {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,139,26,0.8);
+      box-shadow: 0 0 12px 4px rgba(255,139,26,0.5);
+      z-index: 9996; pointer-events: none;
+      display: none;
+      animation: mineHintPulse 1.4s ease-in-out infinite;
+    }
+    #mine-hint.active { display: block; }
+    @keyframes mineHintPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+      50% { transform: translate(-50%, -50%) scale(1.6); opacity: 0.4; }
+    }
+
     /* Hide A-Frame UI */
     .a-enter-vr { display: none !important; }
 
@@ -369,6 +405,22 @@
   <!-- NARRATION SUBTITLE -->
   <div id="narration-sub"></div>
 
+  <!-- FADE OVERLAY (transition between phases) -->
+  <div id="fade-overlay"></div>
+
+  <!-- GAZE RING (fills during mine entrance gaze dwell) -->
+  <div id="gaze-ring">
+    <svg width="72" height="72" viewBox="0 0 72 72">
+      <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(255,139,26,0.25)" stroke-width="3"/>
+      <circle id="gaze-ring-fill" cx="36" cy="36" r="28" fill="none" stroke="#FF8B1A" stroke-width="3"
+        stroke-dasharray="175.9" stroke-dashoffset="175.9" stroke-linecap="round"
+        transform="rotate(-90 36 36)"/>
+    </svg>
+  </div>
+
+  <!-- MINE ENTRANCE HINT (pulsing dot to guide player) -->
+  <div id="mine-hint"></div>
+
   <!-- TOUCH HIT ZONE (Game 2 fallback) -->
   <div id="touch-hit-zone" ontouchstart="handleTouchHit()" onclick="handleTouchHit()"></div>
 
@@ -425,6 +477,7 @@
 
   <!-- ===== ASSETS ===== -->
   <a-assets>
+    <img id="skybox-fora"   src="assets/skybox_fora.jpg"   crossorigin="anonymous">
     <img id="skybox-office" src="assets/skybox_office.jpg" crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
     <img id="skybox-gold"   src="assets/skybox_gold.jpg"   crossorigin="anonymous">
@@ -434,7 +487,7 @@
   </a-assets>
 
   <!-- ===== SKYBOX (global, swapped per game) ===== -->
-  <a-sky id="game-sky" src="#skybox-cave" visible="true" material="shader: flat; src: #skybox-cave; fog: false" rotation="0 90 0"></a-sky>
+  <a-sky id="game-sky" src="#skybox-fora" visible="true" material="shader: flat; src: #skybox-fora; fog: false" rotation="0 90 0"></a-sky>
 
   <!-- ===== CAMERA RIG ===== -->
   <a-entity id="camera-rig" position="0 0 0">
@@ -510,6 +563,18 @@ let geoGazingRAF = null;
 let geoGazeTarget = null;
 let geoWordsRevealed = 0;
 
+// ===== PHASE STATE =====
+let mineGazeRAF = null;
+let mineGazeStartTime = null;
+let gazeRingAnimFrame = null;
+
+// Angle of mine entrance from player starting direction (degrees, 0=forward, 90=right, -90=left)
+// CALIBRATE THIS after testing with skybox_fora.jpg
+const MINE_ENTRANCE_ANGLE = 90;
+const MINE_ENTRANCE_HEIGHT = 1.5;
+const MINE_ENTRANCE_DIST   = 5.0;
+const MINE_GAZE_DWELL_MS   = 2000; // 2 seconds
+
 // ===== DOM REFS =====
 const $ = id => document.getElementById(id);
 const mainMenu      = $('main-menu');
@@ -527,6 +592,10 @@ const backMenuBtn   = $('back-menu-btn');
 const vrEnterBtn    = $('vr-enter-btn');
 const crosshairEl   = $('crosshair');
 const narrationSub  = $('narration-sub');
+const fadeOverlay   = $('fade-overlay');
+const gazeRing      = $('gaze-ring');
+const gazeRingFill  = $('gaze-ring-fill');
+const mineHint      = $('mine-hint');
 
 // ===== SPLASH: pede giroscópio e entra no menu =====
 function requestGyroAndEnter() {
@@ -535,6 +604,11 @@ function requestGyroAndEnter() {
   function showMenu() {
     splash.classList.add('hidden');
     mainMenu.classList.remove('hidden');
+    // Ensure exterior skybox on first load
+    const skyEl = document.getElementById('game-sky');
+    skyEl.setAttribute('src', '#skybox-fora');
+    skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
+    skyEl.setAttribute('rotation', '0 90 0');
   }
 
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -565,7 +639,7 @@ function _doStartGame() {
   mainMenu.classList.add('hidden');
   backMenuBtn.style.display = 'block';
   vrEnterBtn.style.display = 'flex';
-  showIntro();
+  beginPhase1();
 }
 
 function backToMenu() {
@@ -574,11 +648,17 @@ function backToMenu() {
   mainMenu.classList.remove('hidden');
   backMenuBtn.style.display = 'none';
   vrEnterBtn.style.display = 'none';
+  // Reset to exterior
   document.getElementById('game3-world').setAttribute('visible', false);
-  document.getElementById('game-sky').setAttribute('visible', true);
-  document.getElementById('game-sky').setAttribute('src', '#skybox-gold');
-  document.getElementById('game-sky').setAttribute('material', 'shader: flat; src: #skybox-gold; fog: false');
-  document.getElementById('game-sky').setAttribute('rotation', '0 90 0');
+  const skyEl = document.getElementById('game-sky');
+  skyEl.setAttribute('src', '#skybox-fora');
+  skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
+  skyEl.setAttribute('rotation', '0 90 0');
+  skyEl.setAttribute('color', '#ffffff');
+  resetCameraToCenter();
+  // Make sure fade is clear
+  fadeOverlay.classList.remove('fading');
+  fadeOverlay.classList.remove('visible');
 }
 
 function hideAllScreens() {
@@ -594,57 +674,8 @@ function hideAllScreens() {
   rankingScreen.classList.remove('active');
   document.querySelectorAll('a-scene [data-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
   document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
-}
-
-// ===== INTRO: narração + legenda word-by-word + countdown =====
-function showIntro() {
-  hideAllScreens();
-  introCountdown.textContent = '';
-
-  const NARRATION = "O mercado consignado está preso em velhas barreiras... Você tem 40 segundos para quebrá-las e descobrir que o Futuro é com Presença.";
-  const words = NARRATION.split(' ');
-  const WORD_INTERVAL = 520; // ms por palavra
-
-  narrationSub.classList.add('active');
-  narrationSub.textContent = '';
-
-  let countdownStarted = false;
-  function doCountdown() {
-    if (countdownStarted) return;
-    countdownStarted = true;
-    narrationSub.classList.remove('active');
-    introOverlay.classList.add('active');
-    let count = 3;
-    introCountdown.textContent = count;
-    const ci = setInterval(() => {
-      count--;
-      if (count > 0) {
-        introCountdown.textContent = count;
-      } else {
-        clearInterval(ci);
-        introOverlay.classList.remove('active');
-        beginGame();
-      }
-    }, 1000);
-  }
-
-  // Reveal words progressively
-  let idx = 0;
-  const wordTimer = setInterval(() => {
-    idx++;
-    narrationSub.textContent = words.slice(0, idx).join(' ');
-    if (idx >= words.length) clearInterval(wordTimer);
-  }, WORD_INTERVAL);
-
-  // Narration audio
-  const audio = new Audio('assets/narracao.mp3');
-  audio.addEventListener('ended', () => setTimeout(doCountdown, 700));
-  audio.play().catch(() => {
-    // Sem áudio: countdown depois das palavras + pausa
-    setTimeout(doCountdown, words.length * WORD_INTERVAL + 1200);
-  });
-  // Segurança: máximo 25s
-  setTimeout(doCountdown, 25000);
+  stopMineGazeDwell();
+  fadeOverlay.classList.remove('fading');
 }
 
 // ===== BEGIN GAME =====
@@ -665,12 +696,10 @@ function beginGame() {
   timeRemaining = 40;
   completionTime = null;
 
-  resetCameraToCenter();
-
   gameHud.classList.add('active');
   hudScore.classList.add('active');
+  touchHitZone.classList.add('active');
   updateHUD();
-  beginGeoGame();
 
   gameTimer = setInterval(() => {
     timeRemaining--;
@@ -683,6 +712,7 @@ function stopGame() {
   gameActive = false;
   if (gameTimer)    { clearInterval(gameTimer); gameTimer = null; }
   if (geoGazingRAF) { cancelAnimationFrame(geoGazingRAF); geoGazingRAF = null; }
+  stopMineGazeDwell();
 }
 
 // ===== HUD UPDATE =====
@@ -814,32 +844,207 @@ function createCosmosSkyTexture() {
   return canvas.toDataURL();
 }
 
-function beginGeoGame() {
+// ===== PHASE 1: EXTERIOR =====
+function beginPhase1() {
+  hideAllScreens();
+  narrationSub.classList.add('active');
+  narrationSub.textContent = '';
+
+  // Ensure exterior skybox (already default but reset after playAgain)
+  const skyEl = document.getElementById('game-sky');
+  skyEl.setAttribute('src', '#skybox-fora');
+  skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
+  skyEl.setAttribute('rotation', '0 90 0');
+  skyEl.setAttribute('color', '#ffffff');
+  document.getElementById('game3-world').setAttribute('visible', false);
+
+  // Camera faces Presença stand (center of skybox_fora)
+  resetCameraToCenter();
+
+  // Narração 1 — word-by-word subtitle
+  const NARRATION1 = "Você está diante de uma mina cheia de oportunidades. Olhe ao redor. Quando encontrar a entrada da caverna... olhe para ela e entre.";
+  const words1 = NARRATION1.split(' ');
+  let idx1 = 0;
+  const wt1 = setInterval(() => {
+    idx1++;
+    narrationSub.textContent = words1.slice(0, idx1).join(' ');
+    if (idx1 >= words1.length) clearInterval(wt1);
+  }, 520);
+
+  const audio1 = new Audio('assets/narracao1.mp3');
+  audio1.addEventListener('ended', () => {
+    clearInterval(wt1);
+    narrationSub.textContent = '';
+    setTimeout(() => startMineGazeDwell(), 600);
+  });
+  audio1.play().catch(() => {
+    setTimeout(() => {
+      clearInterval(wt1);
+      narrationSub.textContent = '';
+      startMineGazeDwell();
+    }, words1.length * 520 + 1000);
+  });
+  // Safety max
+  setTimeout(() => {
+    clearInterval(wt1);
+    narrationSub.textContent = '';
+    startMineGazeDwell();
+  }, 30000);
+}
+
+// Calculates mine entrance position in 3D space
+function getMineEntrancePos() {
+  const rad = (MINE_ENTRANCE_ANGLE * Math.PI) / 180;
+  return {
+    x: Math.sin(rad) * MINE_ENTRANCE_DIST,
+    y: MINE_ENTRANCE_HEIGHT,
+    z: -Math.cos(rad) * MINE_ENTRANCE_DIST
+  };
+}
+
+function startMineGazeDwell() {
+  mineHint.classList.add('active');
+  gazeRing.classList.add('active');
+  mineGazeStartTime = null;
+
+  const camera = document.getElementById('main-camera');
+  const minePos = getMineEntrancePos();
+  const GAZE_CONE = 0.35; // ~20° cone
+
+  function checkMineGaze() {
+    if (!mineGazeRAF) return; // stopped
+
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
+    const camPos = new THREE.Vector3();
+    camera.object3D.getWorldPosition(camPos);
+
+    const toMine = new THREE.Vector3(
+      minePos.x - camPos.x,
+      minePos.y - camPos.y,
+      minePos.z - camPos.z
+    ).normalize();
+    const angle = dir.angleTo(toMine);
+
+    if (angle < GAZE_CONE) {
+      // Player is looking at mine entrance
+      if (!mineGazeStartTime) mineGazeStartTime = Date.now();
+      const elapsed = Date.now() - mineGazeStartTime;
+      const progress = Math.min(elapsed / MINE_GAZE_DWELL_MS, 1);
+
+      // Update ring fill (stroke-dashoffset: 175.9 = empty, 0 = full)
+      const dashOffset = 175.9 * (1 - progress);
+      gazeRingFill.setAttribute('stroke-dashoffset', dashOffset.toFixed(1));
+
+      if (elapsed >= MINE_GAZE_DWELL_MS) {
+        // Dwell complete — trigger transition
+        stopMineGazeDwell();
+        triggerMineTransition();
+        return;
+      }
+    } else {
+      // Not looking — reset
+      mineGazeStartTime = null;
+      gazeRingFill.setAttribute('stroke-dashoffset', '175.9');
+    }
+
+    mineGazeRAF = requestAnimationFrame(checkMineGaze);
+  }
+  mineGazeRAF = requestAnimationFrame(checkMineGaze);
+}
+
+function stopMineGazeDwell() {
+  if (mineGazeRAF) { cancelAnimationFrame(mineGazeRAF); mineGazeRAF = null; }
+  mineHint.classList.remove('active');
+  gazeRing.classList.remove('active');
+  gazeRingFill.setAttribute('stroke-dashoffset', '175.9');
+  mineGazeStartTime = null;
+}
+
+function triggerMineTransition() {
+  // Fade to black
+  fadeOverlay.classList.add('fading');
+  playShatterSound(); // brief audio cue
+
+  setTimeout(() => {
+    // Inside geode now
+    narrationSub.classList.remove('active');
+    beginPhase2();
+    // Fade back in
+    setTimeout(() => {
+      fadeOverlay.classList.remove('fading');
+    }, 800);
+  }, 1500);
+}
+
+// ===== PHASE 2: INTERIOR (GEODE) =====
+function beginPhase2() {
+  geoWordsRevealed = 0;
+
+  // Setup geode world (WITHOUT starting timer or enabling touch)
   const game3 = document.getElementById('game3-world');
   game3.setAttribute('visible', true);
 
-  // Skybox gold: aparece pelos buracos conforme painéis são quebrados
-  // rotation "0 90 0" = jogador olha para o centro horizontal da equirectangular
   const skyEl = document.getElementById('game-sky');
-  skyEl.setAttribute('visible', true);
   skyEl.setAttribute('src', '#skybox-gold');
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-gold; fog: false');
   skyEl.setAttribute('rotation', '0 90 0');
   skyEl.setAttribute('color', '#ffffff');
 
-  // Show pickaxe
+  // Show pickaxe (idle, game not active yet)
   const picareta = $('picareta-fp');
   picareta.setAttribute('visible', true);
   picareta.setAttribute('position', PICK_REST_POS);
   picareta.setAttribute('rotation', PICK_REST_ROT);
 
-  touchHitZone.classList.add('active');
   crosshairEl.classList.add('active');
+  resetCameraToCenter();
 
-  geoWordsRevealed = 0;
   spawnGeode();
   startGeoGazeLoop();
-  updateHUD();
+
+  // Narração 2 — word-by-word subtitle
+  narrationSub.classList.add('active');
+  narrationSub.textContent = '';
+
+  const NARRATION2 = "Você está dentro do geode. Ao seu redor estão as barreiras do consignado. Use sua picareta e quebre tudo. Descubra que o futuro é com Presença.";
+  const words2 = NARRATION2.split(' ');
+  let idx2 = 0;
+  const wt2 = setInterval(() => {
+    idx2++;
+    narrationSub.textContent = words2.slice(0, idx2).join(' ');
+    if (idx2 >= words2.length) clearInterval(wt2);
+  }, 520);
+
+  let countdownStarted = false;
+  function doPhase2Countdown() {
+    if (countdownStarted) return;
+    countdownStarted = true;
+    clearInterval(wt2);
+    narrationSub.classList.remove('active');
+    narrationSub.textContent = '';
+
+    introOverlay.classList.add('active');
+    let count = 3;
+    introCountdown.textContent = count;
+    const ci = setInterval(() => {
+      count--;
+      if (count > 0) {
+        introCountdown.textContent = count;
+      } else {
+        clearInterval(ci);
+        introOverlay.classList.remove('active');
+        beginGame(); // start 40s timer
+      }
+    }, 1000);
+  }
+
+  const audio2 = new Audio('assets/narracao2.mp3');
+  audio2.addEventListener('ended', () => setTimeout(doPhase2Countdown, 500));
+  audio2.play().catch(() => {
+    setTimeout(doPhase2Countdown, words2.length * 520 + 1000);
+  });
+  // Safety max 30s
+  setTimeout(doPhase2Countdown, 30000);
 }
 
 function spawnGeode() {
@@ -1093,7 +1298,7 @@ function endGame() {
 
 function playAgain() {
   hideAllScreens();
-  showIntro();
+  beginPhase1();
 }
 
 // ===== RANKING SYSTEM =====
