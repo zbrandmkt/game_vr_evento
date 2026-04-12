@@ -1,0 +1,10 @@
+node_modules/
+.claude/
+package-lock.json
+package.json
+assets/skybocx_gold.jpg
+"assets/narração.mp3"
+assets/picareta animadaglb.glb
+assets/Logo*.png
+assets/Logo*.PNG.png
+assets/Logo*.svg
