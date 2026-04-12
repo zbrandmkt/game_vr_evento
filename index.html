@@ -1148,13 +1148,12 @@ function spawnGeode() {
   while (container.firstChild) container.removeChild(container.firstChild);
   geoPanels = [];
 
-  // Carrega textura de rocha do asset já no DOM
-  const rockImgEl = document.getElementById('rock-texture');
-  const rockTex = new THREE.Texture(rockImgEl);
-  rockTex.needsUpdate = true;
+  // TextureLoader é mais confiável que new THREE.Texture(imgEl) — aguarda decode
+  const rockTex = new THREE.TextureLoader().load('assets/rocha.jpg');
   rockTex.wrapS = THREE.RepeatWrapping;
   rockTex.wrapT = THREE.RepeatWrapping;
-  rockTex.repeat.set(1, 1);
+  rockTex.repeat.set(1.5, 1.5); // repete levemente para cobrir o triângulo com mais detalhe
+  rockTex.encoding = THREE.sRGBEncoding;
 
   // IcosahedronGeometry detail=0 → 20 triangular faces
   const sphereGeo = new THREE.IcosahedronGeometry(5.0, 0);
