@@ -202,33 +202,38 @@
     /* ===== RESULT SCREEN ===== */
     #result-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.95); display: none;
+      background: transparent; display: none;
       flex-direction: column; align-items: center; justify-content: center;
-      z-index: 10003; text-align: center; padding: 20px; overflow-y: auto;
+      z-index: 10003; text-align: center; padding: 20px; pointer-events: none;
     }
     #result-screen.active { display: flex; }
-    .result-title { font-size: 28px; font-weight: 900; color: #FF8B1A; margin-bottom: 5px; }
-    .result-score { font-size: 48px; font-weight: 900; color: #fff; margin-bottom: 5px; }
-    .result-detail { font-size: 14px; color: #888; margin-bottom: 20px; }
-    .result-slogan { font-size: 13px; color: #FF8B1A; font-style: italic; margin-bottom: 20px; }
+    #result-screen > * { pointer-events: auto; }
 
-    .result-form { width: 100%; max-width: 300px; margin-bottom: 20px; }
-    .result-form input {
-      width: 100%; padding: 12px 16px; margin: 5px 0;
-      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,139,26,0.4);
-      border-radius: 8px; color: #fff; font-size: 16px; outline: none;
+    .result-title {
+      font-size: 22px; font-weight: 700; color: #FF8B1A; margin-bottom: 8px;
+      text-shadow: 0 2px 16px rgba(0,0,0,0.9);
     }
-    .result-form input::placeholder { color: #666; }
-    .result-form input:focus { border-color: #FF8B1A; }
-
+    .result-score {
+      font-size: 80px; font-weight: 900; color: #fff; line-height: 1;
+      text-shadow: 0 0 40px rgba(255,139,26,0.8), 0 4px 24px rgba(0,0,0,1);
+      margin-bottom: 4px;
+    }
+    .result-detail {
+      font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    }
     .result-btn {
-      display: inline-block; padding: 12px 24px; margin: 5px;
+      display: inline-block; padding: 14px 28px; margin: 6px;
       background: linear-gradient(135deg, #FF8B1A 0%, #F05100 100%);
-      border: none; border-radius: 8px; color: #fff;
-      font-size: 14px; font-weight: 700; cursor: pointer;
+      border: none; border-radius: 12px; color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(240,81,0,0.5), 0 2px 8px rgba(0,0,0,0.6);
     }
     .result-btn.secondary {
-      background: rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
     }
 
     /* ===== RANKING SCREEN ===== */
@@ -435,19 +440,11 @@
 
   <!-- RESULT SCREEN -->
   <div id="result-screen">
-    <div class="result-title" id="result-title">Fim de Jogo!</div>
+    <div class="result-title" id="result-title">Parabéns!</div>
     <div class="result-score" id="result-score-value">0</div>
     <div class="result-detail" id="result-detail"></div>
-    <div class="result-slogan">Leve sua operacao para outro nivel</div>
-    <div class="result-form">
-      <input type="text" id="player-name" placeholder="Seu nome" maxlength="30">
-      <input type="tel" id="player-phone" placeholder="Seu telefone" maxlength="15">
-    </div>
-    <div>
-      <button class="result-btn" onclick="saveAndShowRanking()">Salvar & Ver Ranking</button>
-    </div>
-    <div style="margin-top:10px">
-      <button class="result-btn secondary" onclick="playAgain()">Jogar Novamente</button>
+    <div style="margin-top: 12px;">
+      <button class="result-btn" onclick="playAgain()">Jogar Novamente</button>
       <button class="result-btn secondary" onclick="backToMenu()">Menu</button>
     </div>
   </div>
@@ -1370,14 +1367,28 @@ function updateGeoLighting() {
 function endGame() {
   stopGame();
   hideAllScreens();
-  $('result-title').textContent = 'Tempo Esgotado!';
+
   $('result-score-value').textContent = score + ' pts';
-  $('result-detail').textContent = `${geoWordsRevealed} painel${geoWordsRevealed !== 1 ? 'is' : ''} revelado${geoWordsRevealed !== 1 ? 's' : ''} em 40s`;
+  $('result-detail').textContent = `${geoWordsRevealed} barreira${geoWordsRevealed !== 1 ? 's' : ''} quebrada${geoWordsRevealed !== 1 ? 's' : ''}`;
   lastResult = { game: 'geo', score, time: 40 };
   pushScoreToPending('geo', score, geoWordsRevealed);
   resultScreen.classList.add('active');
-  $('player-name').value = '';
-  $('player-phone').value = '';
+
+  // Narração 3 — frase por frase sobre a cena
+  const PHRASES3 = [
+    "Parabéns! Agora você entende que o\nFuturo do consignado é com Presença!",
+    "Com esta pontuação você está\nconcorrendo a prêmios incríveis...",
+    "Vá até o nosso próximo totem para\ndesbloquear novas oportunidades."
+  ];
+
+  narrationSub.classList.add('active');
+  playPhrases(narrationSub, PHRASES3, 3500, () => {});
+
+  const audio3 = new Audio('assets/narracao3.mp3');
+  audio3.addEventListener('ended', () => hidePhrases(narrationSub));
+  audio3.play().catch(() => {});
+  // Safety: para legenda após 15s se áudio não carregar
+  setTimeout(() => hidePhrases(narrationSub), 15000);
 }
 
 function playAgain() {
