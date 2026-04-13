@@ -820,6 +820,16 @@ function stopGame() {
   stopGeoGazeLoop();
   stopMineGazeDwell();
   releaseWakeLock();
+  cleanupGeoWords();
+}
+
+function cleanupGeoWords() {
+  const sceneObj = document.querySelector('a-scene').object3D;
+  const toRemove = [];
+  sceneObj.traverse(obj => { if (obj.userData && obj.userData.isGeoWord) toRemove.push(obj); });
+  toRemove.forEach(obj => { if (obj.parent) obj.parent.remove(obj); });
+  // Remove também elementos a-frame legados
+  document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
 }
 
 // ===== HUD UPDATE =====
@@ -1184,14 +1194,7 @@ function beginPhase2() {
 }
 
 function spawnGeode() {
-  // Remove palavras reveladas (meshes THREE.js com flag isGeoWord)
-  const sceneObj = document.querySelector('a-scene').object3D;
-  const toRemove = [];
-  sceneObj.traverse(obj => { if (obj.userData && obj.userData.isGeoWord) toRemove.push(obj); });
-  toRemove.forEach(obj => { if (obj.parent) obj.parent.remove(obj); });
-
-  // Remove elementos a-frame legados com data-geo-word (compatibilidade)
-  document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
+  cleanupGeoWords(); // garante limpeza antes de spawnar novo set
 
   const container = document.getElementById('geode-container');
   while (container.firstChild) container.removeChild(container.firstChild);
