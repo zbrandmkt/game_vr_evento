@@ -1406,8 +1406,8 @@ function revealGeoWord(panel) {
   const wy = parseFloat((c.y + inward.y).toFixed(2));
   const wz = parseFloat((c.z + inward.z).toFixed(2));
 
-  // Ângulo para o texto encarar o centro (player)
-  const angle = Math.atan2(c.x, c.z) * 180 / Math.PI;
+  // Ângulo para o texto encarar o centro (player) — +180° inverte a face do plano
+  const angle = Math.atan2(c.x, c.z) * 180 / Math.PI + 180;
 
   // === Canvas texture com Poppins + glow laranja ===
   const lines = panel.word.word.split('\n');
