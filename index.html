@@ -538,15 +538,15 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
 
 // ===== ROCK WORDS — pool de palavras atribuídas aleatoriamente a cada slot =====
 const ROCK_WORDS = [
-  { word: "Link\nAutocontratação",         hits: 3, pts: 200 },
+  { word: "Link\nAutocontratação",          hits: 3, pts: 200 },
   { word: "Teimosinha",                     hits: 2, pts: 100 },
   { word: "Averba já",                      hits: 2, pts: 100 },
-  { word: "Consulta em lote",               hits: 3, pts: 200 },
+  { word: "Consulta\nem lote",              hits: 3, pts: 200 },
   { word: "Disparo no\nWhatsapp",           hits: 2, pts: 100 },
-  { word: "Vitor.ia\nIA de Elegibilidade", hits: 4, pts: 350 },
-  { word: "Melhores comissões",             hits: 2, pts: 100 },
+  { word: "Vitor.ia\nIA de elegibilidade",  hits: 4, pts: 350 },
+  { word: "Melhores\ncomissões",            hits: 2, pts: 100 },
   { word: "Maior range\nde idade",          hits: 3, pts: 200 },
-  { word: "CNAEs ilimitados",               hits: 4, pts: 350 },
+  { word: "CNAEs\nilimitados",              hits: 4, pts: 350 },
 ];
 
 // ===== GAME STATE =====
@@ -1184,7 +1184,15 @@ function beginPhase2() {
 }
 
 function spawnGeode() {
+  // Remove palavras reveladas (meshes THREE.js com flag isGeoWord)
+  const sceneObj = document.querySelector('a-scene').object3D;
+  const toRemove = [];
+  sceneObj.traverse(obj => { if (obj.userData && obj.userData.isGeoWord) toRemove.push(obj); });
+  toRemove.forEach(obj => { if (obj.parent) obj.parent.remove(obj); });
+
+  // Remove elementos a-frame legados com data-geo-word (compatibilidade)
   document.querySelectorAll('a-scene [data-geo-word]').forEach(el => el.parentNode && el.parentNode.removeChild(el));
+
   const container = document.getElementById('geode-container');
   while (container.firstChild) container.removeChild(container.firstChild);
   geoPanels = [];
@@ -1391,30 +1399,100 @@ function shatterPanel(panel) {
 
 function revealGeoWord(panel) {
   const c = panel.centroid;
-  // Word floats slightly inward from panel position (toward center)
-  const inward = new THREE.Vector3(-c.x, -c.y, -c.z).normalize().multiplyScalar(0.8);
-  const wx = (c.x + inward.x).toFixed(2);
-  const wy = (c.y + inward.y).toFixed(2);
-  const wz = (c.z + inward.z).toFixed(2);
 
-  // Rotation: face toward center (0,0,0)
+  // Posição: levemente para dentro do centro da geoda
+  const inward = new THREE.Vector3(-c.x, -c.y, -c.z).normalize().multiplyScalar(0.9);
+  const wx = parseFloat((c.x + inward.x).toFixed(2));
+  const wy = parseFloat((c.y + inward.y).toFixed(2));
+  const wz = parseFloat((c.z + inward.z).toFixed(2));
+
+  // Ângulo para o texto encarar o centro (player)
   const angle = Math.atan2(c.x, c.z) * 180 / Math.PI;
 
-  const txt = document.createElement('a-text');
-  txt.setAttribute('value', panel.word.word);
-  txt.setAttribute('position', `${wx} ${wy} ${wz}`);
-  txt.setAttribute('rotation', `0 ${angle} 0`);
-  txt.setAttribute('scale', '0.01 0.01 0.01');
-  txt.setAttribute('align', 'center');
-  txt.setAttribute('color', '#FFD700');
-  txt.setAttribute('width', '3.5');
-  txt.setAttribute('font', 'mozillavr');
-  txt.setAttribute('data-geo-word', 'true');
-  document.querySelector('a-scene').appendChild(txt);
+  // === Canvas texture com Poppins + glow laranja ===
+  const lines = panel.word.word.split('\n');
+  const fontSize = 52;
+  const lineH = fontSize + 10;
+  const padding = 28;
+  const canvasW = 512;
+  const canvasH = lineH * lines.length + padding * 2;
 
-  setTimeout(() => {
-    txt.setAttribute('animation__scale', `property: scale; to: 1 1 1; dur: 400; easing: easeOutBack`);
-  }, 0);
+  const cvs = document.createElement('canvas');
+  cvs.width = canvasW; cvs.height = canvasH;
+  const ctx = cvs.getContext('2d');
+
+  // Fundo transparente
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // Glow laranja
+  ctx.shadowColor = '#FF8B1A';
+  ctx.shadowBlur = 22;
+
+  // Texto branco, Poppins Bold
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `700 ${fontSize}px Poppins, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  lines.forEach((line, i) => {
+    const y = padding + lineH * i + lineH / 2;
+    // Glow em 3 passes para reforçar
+    for (let g = 0; g < 3; g++) ctx.fillText(line, canvasW / 2, y);
+  });
+
+  const tex = new THREE.CanvasTexture(cvs);
+  const aspect = canvasW / canvasH;
+  const planeH = 0.55;
+  const planeW = planeH * aspect;
+
+  const geo = new THREE.PlaneGeometry(planeW, planeH);
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+
+  // Posição e rotação
+  mesh.position.set(wx, wy, wz);
+  mesh.rotation.y = angle * Math.PI / 180;
+  mesh.scale.set(0.01, 0.01, 0.01); // começa micro, cresce
+
+  const scene = document.querySelector('a-scene');
+  scene.object3D.add(mesh);
+
+  // Animação de aparecimento (scale)
+  const tStart = performance.now();
+  const DUR_GROW = 420;
+  function growAnim(t) {
+    const prog = Math.min((t - tStart) / DUR_GROW, 1);
+    // easeOutBack
+    const c1 = 1.70158, c3 = c1 + 1;
+    const s = 1 + c3 * Math.pow(prog - 1, 3) + c1 * Math.pow(prog - 1, 2);
+    mesh.scale.set(s, s, s);
+    if (prog < 1) requestAnimationFrame(growAnim);
+    else {
+      mesh.scale.set(1, 1, 1);
+      startFloatAnim(mesh, wy);
+    }
+  }
+  requestAnimationFrame(growAnim);
+
+  // Mantém referência para limpeza no playAgain
+  mesh.userData.isGeoWord = true;
+}
+
+function startFloatAnim(mesh, baseY) {
+  const amp = 0.04;
+  const speed = 0.0012;
+  const phase = Math.random() * Math.PI * 2; // fase aleatória por palavra
+  const tStart = performance.now();
+
+  function loop(t) {
+    if (!mesh.parent) return; // foi removido
+    const elapsed = t - tStart;
+    mesh.position.y = baseY + Math.sin(elapsed * speed + phase) * amp;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
 }
 
 function updateGeoLighting() {
