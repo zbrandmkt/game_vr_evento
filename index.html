@@ -345,9 +345,14 @@
       position: fixed; bottom: 15px; right: 15px; z-index: 10001;
       background: linear-gradient(135deg, #FF8B1A, #F05100);
       border: none; border-radius: 50%; width: 50px; height: 50px;
-      display: none; align-items: center; justify-content: center;
-      cursor: pointer; color: #fff; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #fff; font-size: 14px; font-weight: 700;
+      box-shadow: 0 4px 16px rgba(240,81,0,0.5);
+      font-family: 'Poppins', sans-serif;
     }
+    /* Esconde botão VR e overlay quando em modo VR estéreo */
+    body.vr-mode #vr-enter-btn { display: none; }
+    body.vr-mode #overlay-layer { display: none !important; }
   </style>
 </head>
 <body>
@@ -472,9 +477,9 @@
   vr-mode-ui="enabled: false"
   device-orientation-permission-ui="enabled: false"
   renderer="antialias: false; alpha: false"
+  webxr="optionalFeatures: local-floor, bounded-floor"
   fog="type: exponential; color: #0A0A0A; density: 0"
-  embedded
-  style="position:fixed;top:0;left:0;width:100%;height:100%;">
+  style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;">
 
   <!-- ===== ASSETS ===== -->
   <a-assets timeout="15000">
@@ -1631,6 +1636,10 @@ function enterVR() {
   }
 }
 
+function _vrTouchHit() {
+  if (gameActive) handleTouchHit();
+}
+
 // ===== UTILITIES =====
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -1656,6 +1665,24 @@ $('player-phone').addEventListener('focus', function() { this.style.borderColor 
 
 // ===== INIT =====
 // Botão do splash já está habilitado no HTML — sem dependência do A-Frame loaded event
+
+document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene');
+
+  // Entrada em VR: esconde overlay HTML (não renderiza em estéreo) + toque = hit
+  scene.addEventListener('enter-vr', () => {
+    document.body.classList.add('vr-mode');
+    document.addEventListener('touchstart', _vrTouchHit, { passive: true });
+    console.log('[VR] Modo estéreo ativado');
+  });
+
+  // Saída de VR: restaura overlay
+  scene.addEventListener('exit-vr', () => {
+    document.body.classList.remove('vr-mode');
+    document.removeEventListener('touchstart', _vrTouchHit);
+    console.log('[VR] Modo estéreo desativado');
+  });
+});
 
 </script>
 </body>
