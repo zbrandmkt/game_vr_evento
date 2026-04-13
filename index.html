@@ -486,7 +486,7 @@
   </a-assets>
 
   <!-- ===== SKYBOX (global, swapped per game) ===== -->
-  <a-sky id="game-sky" src="#skybox-fora" visible="true" material="shader: flat; src: #skybox-fora; fog: false" rotation="0 20 0"></a-sky>
+  <a-sky id="game-sky" src="#skybox-fora" visible="true" material="shader: flat; src: #skybox-fora; fog: false" rotation="0 160 0"></a-sky>
 
   <!-- ===== CAMERA RIG ===== -->
   <a-entity id="camera-rig" position="0 0 0">
@@ -568,8 +568,8 @@ let mineGazeStartTime = null;
 let gazeRingAnimFrame = null;
 
 // Angle of mine entrance from player starting direction (degrees, 0=forward, 90=right, -90=left)
-// Calibrated: stand at u≈0.20 (sky Y=20), cave at u≈0.65 → delta=0.45×360≈162° to the right
-const MINE_ENTRANCE_ANGLE = 160;
+// Calibrated (swapped): sky Y=160 → player starts on Presença stand; cave entrance is ~20° ahead-left
+const MINE_ENTRANCE_ANGLE = 20;
 const MINE_ENTRANCE_HEIGHT = 1.5;
 const MINE_ENTRANCE_DIST   = 5.0;
 const MINE_GAZE_DWELL_MS   = 2000; // 2 seconds
@@ -607,7 +607,7 @@ function requestGyroAndEnter() {
     const skyEl = document.getElementById('game-sky');
     skyEl.setAttribute('src', '#skybox-fora');
     skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-    skyEl.setAttribute('rotation', '0 20 0');
+    skyEl.setAttribute('rotation', '0 160 0');
   }
 
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -652,7 +652,7 @@ function backToMenu() {
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('src', '#skybox-fora');
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-  skyEl.setAttribute('rotation', '0 20 0');
+  skyEl.setAttribute('rotation', '0 160 0');
   skyEl.setAttribute('color', '#ffffff');
   resetCameraToCenter();
   // Make sure fade is clear
@@ -853,7 +853,7 @@ function beginPhase1() {
   const skyEl = document.getElementById('game-sky');
   skyEl.setAttribute('src', '#skybox-fora');
   skyEl.setAttribute('material', 'shader: flat; src: #skybox-fora; fog: false');
-  skyEl.setAttribute('rotation', '0 20 0');
+  skyEl.setAttribute('rotation', '0 160 0');
   skyEl.setAttribute('color', '#ffffff');
   document.getElementById('game3-world').setAttribute('visible', false);
 
