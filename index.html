@@ -9,8 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link href="https://fonts.cdnfonts.com/css/dseg7-classic" rel="stylesheet">
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <!-- NoSleep.js: fallback para Wake Lock em iOS e dispositivos sem suporte nativo -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep.js/0.12.0/NoSleep.min.js"></script>
   <!-- Firebase SDK v12 (modular) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -605,13 +603,8 @@ const mineHint      = $('mine-hint');
 function requestGyroAndEnter() {
   const splash = $('splash-screen');
 
-  // Ativa NoSleep aqui — dentro do gesto do usuário (obrigatório pelo browser)
-  try {
-    if (typeof NoSleep !== 'undefined') {
-      if (!_noSleep) _noSleep = new NoSleep();
-      _noSleep.enable();
-    }
-  } catch(e) {}
+  // Inicializa vídeo mudo (wake lock fallback iOS) — deve ser dentro de gesto do usuário
+  try { _initNoSleepVideo(); } catch(e) {}
 
   function showMenu() {
     splash.classList.add('hidden');
@@ -703,24 +696,68 @@ function resetCameraToCenter() {
 }
 
 // ===== WAKE LOCK (evita tela apagar por inatividade) =====
-// Usa Screen Wake Lock API (Chrome/Safari 17+) + NoSleep.js como fallback universal
-let _wakeLock = null;
-let _noSleep  = null;
+// Estratégia dupla: API nativa (Chrome/Android) + vídeo mudo inline (iOS Safari)
+let _wakeLock   = null;
+let _noSleepVid = null;
+
+function _initNoSleepVideo() {
+  // Cria vídeo mudo de 1x1px que toca em loop — impede sleep no iOS Safari
+  // Deve ser chamado DENTRO de um gesto do usuário
+  if (_noSleepVid) return;
+  const v = document.createElement('video');
+  v.setAttribute('playsinline', '');
+  v.setAttribute('muted', '');
+  v.setAttribute('loop', '');
+  v.style.cssText = 'position:fixed;width:1px;height:1px;top:-2px;left:-2px;opacity:0;pointer-events:none;';
+  // Vídeo MP4 mínimo (1 frame transparente) codificado em base64
+  const src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA1FtZGF0AAAC' +
+    'rgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE0OCByMjYwMSBhMGNkN2QzIC0gSC4yNjQvTVBFRy00IEFWQ' +
+    'yBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdG' +
+    'lvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k' +
+    '9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhk' +
+    'Y3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTYx' +
+    'IGxvb2thaGVhZF90aHJlYWRzPTEwIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBi' +
+    'bHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJf' +
+    'Ymlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MiBrZXlpbnQ9MjUwIGtleWludF9taW49' +
+    'MjUgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTI4' +
+    'LjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAAAAAWWI' +
+    'hAAA//72ynbKm1ICAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+  const src2 = 'data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcBAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'VYmKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABZUrmsCrXsYMPggEBIrecEDf3BAAAAAAAAA' +
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAk' +
+    'FNm7j4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADhBAAAAAAAAAAAAAAAAAAAA' +
+    'ABJUxYtYxgw9YgAAA==';
+  // Usa WebM como preferido (menor), MP4 como fallback
+  const s1 = document.createElement('source'); s1.src = src2; s1.type = 'video/webm';
+  const s2 = document.createElement('source'); s2.src = src;  s2.type = 'video/mp4';
+  v.appendChild(s1); v.appendChild(s2);
+  document.body.appendChild(v);
+  _noSleepVid = v;
+}
 
 async function requestWakeLock() {
-  // Tenta Wake Lock nativa (Chrome/Safari 17+)
-  // NoSleep.js já foi ativado no toque do splash — mantém a tela ligada em iOS
+  // 1) API nativa (Chrome Android, Safari 17+)
   try {
     if ('wakeLock' in navigator) {
       _wakeLock = await navigator.wakeLock.request('screen');
       _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+      return;
     }
   } catch(e) {}
+  // 2) Fallback: vídeo mudo em loop (iOS Safari)
+  try { if (_noSleepVid) _noSleepVid.play(); } catch(e) {}
 }
 
 function releaseWakeLock() {
   if (_wakeLock) { _wakeLock.release().catch(() => {}); _wakeLock = null; }
-  if (_noSleep)  { _noSleep.disable(); }
+  if (_noSleepVid) { _noSleepVid.pause(); }
 }
 
 // Reaquire se usuário voltar da tela de bloqueio
