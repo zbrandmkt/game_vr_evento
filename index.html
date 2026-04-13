@@ -599,6 +599,33 @@ const gazeRing      = $('gaze-ring');
 const mineHint      = $('mine-hint');
 // gazeRingFill é SVG — buscado inline para evitar null em alguns browsers
 
+// ===== AUDIO PRÉ-CARREGADO =====
+// Objetos criados uma vez e reutilizados — evita bloqueio de autoplay no iOS
+let _aud1 = null, _aud2 = null, _aud3 = null;
+
+function _preloadAudio() {
+  _aud1 = new Audio('assets/narracao1.mp3'); _aud1.load();
+  _aud2 = new Audio('assets/narracao2.mp3'); _aud2.load();
+  _aud3 = new Audio('assets/narracao3.mp3'); _aud3.load();
+}
+
+function _playAudio(aud, onEnded) {
+  if (!aud) return;
+  try {
+    aud.currentTime = 0;
+    if (onEnded) {
+      aud.onended = onEnded;
+    }
+    const p = aud.play();
+    if (p && p.catch) p.catch(() => { if (onEnded) onEnded(); });
+  } catch(e) { if (onEnded) onEnded(); }
+}
+
+function _stopAudio(aud) {
+  if (!aud) return;
+  try { aud.pause(); aud.currentTime = 0; aud.onended = null; } catch(e) {}
+}
+
 // ===== SPLASH: pede giroscópio e entra no menu =====
 function requestGyroAndEnter() {
   const splash = $('splash-screen');
@@ -618,6 +645,9 @@ function requestGyroAndEnter() {
 
   // Inicializa vídeo mudo (wake lock) — deve ser dentro de gesto do usuário
   try { _initNoSleepVideo(); } catch(e) {}
+
+  // Pré-carrega áudios dentro do gesto — desbloqueia autoplay no iOS
+  try { _preloadAudio(); } catch(e) {}
 
   function showMenu() {
     splash.classList.add('hidden');
@@ -998,9 +1028,7 @@ function beginPhase1() {
   // Frases duram 2800ms cada; 5 frases = ~18s total (sincroniza com narração)
   playPhrases(narrationSub, PHRASES1, 2800, triggerGazeDwell);
 
-  const audio1 = new Audio('assets/narracao1.mp3');
-  audio1.addEventListener('ended', triggerGazeDwell);
-  audio1.play().catch(() => {});
+  _playAudio(_aud1, triggerGazeDwell);
   // Safety max 32s
   setTimeout(triggerGazeDwell, 32000);
 }
@@ -1074,6 +1102,8 @@ function stopMineGazeDwell() {
 }
 
 function triggerMineTransition() {
+  // Para narração 1 ao entrar na caverna
+  _stopAudio(_aud1);
   // Fade to black
   fadeOverlay.classList.add('fading');
   playShatterSound(); // brief audio cue
@@ -1148,9 +1178,7 @@ function beginPhase2() {
   // Frases duram 3200ms cada; 2 frases = ~8s (sincroniza com narração)
   playPhrases(narrationSub, PHRASES2, 3200, doPhase2Countdown);
 
-  const audio2 = new Audio('assets/narracao2.mp3');
-  audio2.addEventListener('ended', doPhase2Countdown);
-  audio2.play().catch(() => {});
+  _playAudio(_aud2, doPhase2Countdown);
   // Safety max 20s
   setTimeout(doPhase2Countdown, 20000);
 }
@@ -1411,8 +1439,7 @@ function endGame() {
   resultScreen.classList.add('active');
 
   // Narração 3 — só áudio, sem legendas
-  const audio3 = new Audio('assets/narracao3.mp3');
-  audio3.play().catch(() => {});
+  _playAudio(_aud3, null);
 }
 
 function playAgain() {
