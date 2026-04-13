@@ -692,11 +692,31 @@ function resetCameraToCenter() {
   cam.object3D.rotation.set(0, 0, 0);
 }
 
+// ===== WAKE LOCK (evita tela apagar por inatividade) =====
+let _wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      _wakeLock = await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    }
+  } catch(e) { /* silencioso — Safari/dispositivos sem suporte */ }
+}
+function releaseWakeLock() {
+  if (_wakeLock) { _wakeLock.release().catch(() => {}); _wakeLock = null; }
+}
+// Reaquire wake lock se tela for reativada (ex: usuário voltou do bloqueio)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && gameActive) requestWakeLock();
+});
+
 function beginGame() {
   gameActive    = true;
   score         = 0;
   timeRemaining = 40;
   completionTime = null;
+
+  requestWakeLock(); // impede tela de apagar durante o jogo
 
   gameHud.classList.add('active');
   hudScore.classList.add('active');
@@ -712,9 +732,10 @@ function beginGame() {
 
 function stopGame() {
   gameActive = false;
-  if (gameTimer)    { clearInterval(gameTimer); gameTimer = null; }
-  if (geoGazingRAF) { cancelAnimationFrame(geoGazingRAF); geoGazingRAF = null; }
+  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+  stopGeoGazeLoop();
   stopMineGazeDwell();
+  releaseWakeLock();
 }
 
 // ===== HUD UPDATE =====
@@ -1170,12 +1191,15 @@ function spawnGeode() {
   }
 }
 
+let geoGazeActive = false;
+
 function startGeoGazeLoop() {
+  geoGazeActive = true;
   const camera = document.getElementById('main-camera');
   const GEO_GAZE_ANGLE = 0.30;
 
   function loop() {
-    if (!gameActive) return;
+    if (!geoGazeActive) return; // usa flag própria, independente de gameActive
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.object3D.quaternion);
     const camPos = new THREE.Vector3();
     camera.object3D.getWorldPosition(camPos);
@@ -1199,6 +1223,12 @@ function startGeoGazeLoop() {
     geoGazingRAF = requestAnimationFrame(loop);
   }
   geoGazingRAF = requestAnimationFrame(loop);
+}
+
+function stopGeoGazeLoop() {
+  geoGazeActive = false;
+  geoGazeTarget = null;
+  if (geoGazingRAF) { cancelAnimationFrame(geoGazingRAF); geoGazingRAF = null; }
 }
 
 function registerGeoHit(panel) {
