@@ -603,7 +603,20 @@ const mineHint      = $('mine-hint');
 function requestGyroAndEnter() {
   const splash = $('splash-screen');
 
-  // Inicializa vídeo mudo (wake lock fallback iOS) — deve ser dentro de gesto do usuário
+  // Desbloqueia áudio no iOS — cria e resume AudioContext dentro do gesto do usuário
+  // Após isso, todos os new Audio().play() funcionam sem bloqueio
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    ctx.resume();
+    window._audioCtxUnlocked = true;
+  } catch(e) {}
+
+  // Inicializa vídeo mudo (wake lock) — deve ser dentro de gesto do usuário
   try { _initNoSleepVideo(); } catch(e) {}
 
   function showMenu() {
@@ -742,28 +755,14 @@ function _initNoSleepVideo() {
   _noSleepVid = v;
 }
 
-async function requestWakeLock() {
-  // 1) API nativa (Chrome Android, Safari 17+)
-  try {
-    if ('wakeLock' in navigator) {
-      _wakeLock = await navigator.wakeLock.request('screen');
-      _wakeLock.addEventListener('release', () => { _wakeLock = null; });
-      return;
-    }
-  } catch(e) {}
-  // 2) Fallback: vídeo mudo em loop (iOS Safari)
-  try { if (_noSleepVid) _noSleepVid.play(); } catch(e) {}
+function requestWakeLock() {
+  // Apenas vídeo mudo em loop — funciona em iOS e Android sem precisar de API nativa
+  try { if (_noSleepVid) _noSleepVid.play().catch(() => {}); } catch(e) {}
 }
 
 function releaseWakeLock() {
-  if (_wakeLock) { _wakeLock.release().catch(() => {}); _wakeLock = null; }
-  if (_noSleepVid) { _noSleepVid.pause(); }
+  try { if (_noSleepVid) _noSleepVid.pause(); } catch(e) {}
 }
-
-// Reaquire se usuário voltar da tela de bloqueio
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && gameActive) requestWakeLock();
-});
 
 function beginGame() {
   gameActive    = true;
@@ -1411,21 +1410,9 @@ function endGame() {
   pushScoreToPending('geo', score, geoWordsRevealed);
   resultScreen.classList.add('active');
 
-  // Narração 3 — frase por frase sobre a cena
-  const PHRASES3 = [
-    "Parabéns! Agora você entende que o\nFuturo do consignado é com Presença!",
-    "Com esta pontuação você está\nconcorrendo a prêmios incríveis...",
-    "Vá até o nosso próximo totem para\ndesbloquear novas oportunidades."
-  ];
-
-  narrationSub.classList.add('active');
-  playPhrases(narrationSub, PHRASES3, 3500, () => {});
-
+  // Narração 3 — só áudio, sem legendas
   const audio3 = new Audio('assets/narracao3.mp3');
-  audio3.addEventListener('ended', () => hidePhrases(narrationSub));
   audio3.play().catch(() => {});
-  // Safety: para legenda após 15s se áudio não carregar
-  setTimeout(() => hidePhrases(narrationSub), 15000);
 }
 
 function playAgain() {
