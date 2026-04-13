@@ -274,15 +274,18 @@
 
     /* ===== NARRATION SUBTITLE ===== */
     #narration-sub {
-      position: fixed; bottom: 90px; left: 50%;
-      transform: translateX(-50%);
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, 60px);
       z-index: 10005; text-align: center;
-      font-size: 18px; font-weight: 600; color: #fff;
-      text-shadow: 0 2px 16px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
-      max-width: 82%; line-height: 1.65;
+      font-size: 22px; font-weight: 700; color: #fff;
+      text-shadow: 0 2px 24px rgba(0,0,0,1), 0 0 60px rgba(0,0,0,0.95);
+      max-width: 78%; line-height: 1.5;
       pointer-events: none; display: none; letter-spacing: 0.3px;
+      opacity: 0;
+      transition: opacity 0.45s ease;
     }
     #narration-sub.active { display: block; }
+    #narration-sub.visible { opacity: 1; }
 
     /* ===== GAME 2 HIT FEEDBACK ===== */
     #hit-feedback {
@@ -843,6 +846,46 @@ function createCosmosSkyTexture() {
   return canvas.toDataURL();
 }
 
+// ===== PHRASE-BY-PHRASE SUBTITLE ENGINE =====
+// Displays an array of phrases one at a time with fade in/out animation.
+// Each phrase stays visible for `durationMs`, then fades out before the next.
+// Calls `onDone` after all phrases are shown.
+function playPhrases(el, phrases, durationMs, onDone) {
+  el.classList.add('active');
+  let i = 0;
+  const FADE = 450; // ms — matches CSS transition
+
+  function showNext() {
+    if (i >= phrases.length) {
+      hidePhrases(el);
+      if (onDone) setTimeout(onDone, FADE);
+      return;
+    }
+    // Fade in
+    el.textContent = phrases[i].replace(/\\n/g, '\n');
+    el.style.whiteSpace = 'pre-line';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { el.classList.add('visible'); });
+    });
+    // Wait, then fade out and show next
+    setTimeout(() => {
+      el.classList.remove('visible');
+      i++;
+      setTimeout(showNext, FADE);
+    }, durationMs);
+  }
+
+  showNext();
+}
+
+function hidePhrases(el) {
+  el.classList.remove('visible');
+  setTimeout(() => {
+    el.classList.remove('active');
+    el.textContent = '';
+  }, 450);
+}
+
 // ===== PHASE 1: EXTERIOR =====
 function beginPhase1() {
   hideAllScreens();
@@ -860,35 +903,31 @@ function beginPhase1() {
   // Camera faces Presença stand (center of skybox_fora)
   resetCameraToCenter();
 
-  // Narração 1 — word-by-word subtitle
-  const NARRATION1 = "Você está diante de uma mina cheia de oportunidades. Olhe ao redor. Quando encontrar a entrada da caverna... olhe para ela e entre.";
-  const words1 = NARRATION1.split(' ');
-  let idx1 = 0;
-  const wt1 = setInterval(() => {
-    idx1++;
-    narrationSub.textContent = words1.slice(0, idx1).join(' ');
-    if (idx1 >= words1.length) clearInterval(wt1);
-  }, 520);
+  // Narração 1 — frase por frase
+  const PHRASES1 = [
+    "O mercado consignado está preso em velhas barreiras...",
+    "Encontramos uma Mina cheia delas!",
+    "E dizem que escondem grandes oportunidades.",
+    "Não quero que você perca...",
+    "Entre agora na mina,\na equipe já está te esperando!"
+  ];
+
+  let phase1Done = false;
+  function triggerGazeDwell() {
+    if (phase1Done) return;
+    phase1Done = true;
+    hidePhrases(narrationSub);
+    setTimeout(() => startMineGazeDwell(), 500);
+  }
+
+  // Frases duram 2800ms cada; 5 frases = ~18s total (sincroniza com narração)
+  playPhrases(narrationSub, PHRASES1, 2800, triggerGazeDwell);
 
   const audio1 = new Audio('assets/narracao1.mp3');
-  audio1.addEventListener('ended', () => {
-    clearInterval(wt1);
-    narrationSub.textContent = '';
-    setTimeout(() => startMineGazeDwell(), 600);
-  });
-  audio1.play().catch(() => {
-    setTimeout(() => {
-      clearInterval(wt1);
-      narrationSub.textContent = '';
-      startMineGazeDwell();
-    }, words1.length * 520 + 1000);
-  });
-  // Safety max
-  setTimeout(() => {
-    clearInterval(wt1);
-    narrationSub.textContent = '';
-    startMineGazeDwell();
-  }, 30000);
+  audio1.addEventListener('ended', triggerGazeDwell);
+  audio1.play().catch(() => {});
+  // Safety max 32s
+  setTimeout(triggerGazeDwell, 32000);
 }
 
 // Calculates mine entrance position in 3D space
@@ -1001,26 +1040,20 @@ function beginPhase2() {
   spawnGeode();
   startGeoGazeLoop();
 
-  // Narração 2 — word-by-word subtitle
+  // Narração 2 — frase por frase
   narrationSub.classList.add('active');
   narrationSub.textContent = '';
 
-  const NARRATION2 = "Você está dentro do geode. Ao seu redor estão as barreiras do consignado. Use sua picareta e quebre tudo. Descubra que o futuro é com Presença.";
-  const words2 = NARRATION2.split(' ');
-  let idx2 = 0;
-  const wt2 = setInterval(() => {
-    idx2++;
-    narrationSub.textContent = words2.slice(0, idx2).join(' ');
-    if (idx2 >= words2.length) clearInterval(wt2);
-  }, 520);
+  const PHRASES2 = [
+    "Você tem 40 segundos para\nquebrar essas barreiras...",
+    "Agora é com você!"
+  ];
 
   let countdownStarted = false;
   function doPhase2Countdown() {
     if (countdownStarted) return;
     countdownStarted = true;
-    clearInterval(wt2);
-    narrationSub.classList.remove('active');
-    narrationSub.textContent = '';
+    hidePhrases(narrationSub);
 
     introOverlay.classList.add('active');
     let count = 3;
@@ -1037,13 +1070,14 @@ function beginPhase2() {
     }, 1000);
   }
 
+  // Frases duram 3200ms cada; 2 frases = ~8s (sincroniza com narração)
+  playPhrases(narrationSub, PHRASES2, 3200, doPhase2Countdown);
+
   const audio2 = new Audio('assets/narracao2.mp3');
-  audio2.addEventListener('ended', () => setTimeout(doPhase2Countdown, 500));
-  audio2.play().catch(() => {
-    setTimeout(doPhase2Countdown, words2.length * 520 + 1000);
-  });
-  // Safety max 30s
-  setTimeout(doPhase2Countdown, 30000);
+  audio2.addEventListener('ended', doPhase2Countdown);
+  audio2.play().catch(() => {});
+  // Safety max 20s
+  setTimeout(doPhase2Countdown, 20000);
 }
 
 function spawnGeode() {
