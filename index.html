@@ -360,8 +360,8 @@
     <img src="assets/logo-branco.png" alt="Presenca" style="width:200px;height:auto;margin-bottom:28px;filter:drop-shadow(0 0 24px rgba(255,139,26,0.5));">
     <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:8px;letter-spacing:1px;">Workshop Corban360</div>
     <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:48px;">16 e 17 de Abril, 2026</div>
-    <button id="splash-btn" class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;opacity:0.5;pointer-events:none;">
-      ⏳ Carregando...
+    <button id="splash-btn" class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;">
+      🎮 Toque para Jogar
     </button>
     <div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.3);max-width:240px;text-align:center;line-height:1.6;">
       Será solicitada permissão para o sensor de movimento do dispositivo
@@ -1560,25 +1560,7 @@ $('player-name').addEventListener('focus', function() { this.style.borderColor =
 $('player-phone').addEventListener('focus', function() { this.style.borderColor = 'rgba(255,139,26,0.4)'; });
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-  // Habilita botão do splash assim que A-Frame terminar de carregar os assets
-  const scene = document.querySelector('a-scene');
-  const splashBtn = document.getElementById('splash-btn');
-
-  function enableSplashBtn() {
-    splashBtn.textContent = '🎮 Toque para Jogar';
-    splashBtn.style.opacity = '1';
-    splashBtn.style.pointerEvents = 'auto';
-  }
-
-  if (scene.hasLoaded) {
-    enableSplashBtn();
-  } else {
-    scene.addEventListener('loaded', enableSplashBtn);
-    // Fallback: habilita após 6s mesmo se assets demorarem
-    setTimeout(enableSplashBtn, 6000);
-  }
-});
+// Botão do splash já está habilitado no HTML — sem dependência do A-Frame loaded event
 
 </script>
 </body>
