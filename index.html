@@ -351,9 +351,7 @@
       font-family: 'Poppins', sans-serif;
     }
     /* ===== VR MODE ===== */
-    /* Esconde apenas elementos de menu/navegação */
-    body.vr-mode #splash-screen,
-    body.vr-mode #main-menu,
+    /* Só esconde navegação específica do modo 2D */
     body.vr-mode #back-menu-btn,
     body.vr-mode #vr-enter-btn,
     body.vr-mode #ranking-screen,
@@ -368,6 +366,25 @@
       width: 50%;
       overflow: hidden;
     }
+    /* Escalas de fonte reduzidas para caberem no olho (50% da largura) */
+    body.vr-mode #splash-screen img  { width: 110px !important; margin-bottom: 14px !important; }
+    body.vr-mode #splash-btn         { width: 180px !important; font-size: 13px !important; padding: 12px 16px !important; }
+    body.vr-mode .menu-logo          { width: 140px !important; margin-bottom: 8px !important; }
+    body.vr-mode .menu-subtitle      { font-size: 10px !important; margin-bottom: 20px !important; letter-spacing: 1px !important; }
+    body.vr-mode .menu-btn           { width: 180px !important; font-size: 14px !important; padding: 12px 16px !important; margin: 6px auto !important; border-radius: 10px !important; }
+    body.vr-mode .menu-footer        { font-size: 9px !important; bottom: 12px !important; }
+    body.vr-mode #intro-countdown    { font-size: 64px !important; min-height: 72px !important; }
+    body.vr-mode #hud-timer          { font-size: 30px !important; letter-spacing: 2px !important; }
+    body.vr-mode #hud-score          { font-size: 16px !important; bottom: 14px !important; letter-spacing: 1px !important; }
+    body.vr-mode #hud-center-info    { font-size: 14px !important; }
+    body.vr-mode #narration-sub      { font-size: 14px !important; max-width: 88% !important; line-height: 1.4 !important; }
+    body.vr-mode #hit-feedback       { font-size: 28px !important; }
+    body.vr-mode .result-title       { font-size: 14px !important; }
+    body.vr-mode .result-score       { font-size: 52px !important; }
+    body.vr-mode .result-detail      { font-size: 10px !important; margin-bottom: 18px !important; }
+    body.vr-mode .result-btn         { font-size: 12px !important; padding: 10px 18px !important; margin: 4px !important; border-radius: 8px !important; }
+    body.vr-mode #crosshair svg      { width: 32px !important; height: 32px !important; }
+    body.vr-mode #gaze-ring svg      { width: 50px !important; height: 50px !important; }
     /* UI dedicada ao modo VR — fica por cima de tudo */
     #vr-ui {
       display: none;
@@ -382,12 +399,16 @@
       border-radius: 20px; color: #FF8B1A; font-family: 'Poppins', sans-serif;
       font-size: 13px; font-weight: 700; padding: 7px 18px;
       pointer-events: auto; cursor: pointer; letter-spacing: 1px;
+      z-index: 100001; /* acima do vr-hit-zone */
     }
     /* Área de toque invisível — cobre tela toda em VR para registrar golpes */
     #vr-hit-zone {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: auto; background: transparent;
+      pointer-events: none; background: transparent;
     }
+    /* Só recebe toques quando o jogo está ativo (fase 2) — liberando cliques
+       em botões de menu/splash/resultado nas outras telas */
+    body.vr-mode.game-active #vr-hit-zone { pointer-events: auto; }
     /* HUD mínimo VR — placar e tempo flutuando no centro */
     #vr-hud {
       position: absolute; top: 50%; left: 50%;
@@ -526,13 +547,14 @@
 
 <!-- VR UI dedicada — só aparece em body.vr-mode -->
 <div id="vr-ui">
-  <button id="vr-exit-btn" onclick="exitStereoVR()">✕ Sair VR</button>
+  <!-- Hit-zone PRIMEIRO (fica por baixo) — recebe toques para golpes -->
+  <div id="vr-hit-zone" ontouchstart="if(gameActive) handleTouchHit()" onclick="if(gameActive) handleTouchHit()"></div>
+  <!-- HUD e botão saem POR CIMA do hit-zone via z-index -->
   <div id="vr-hud">
     <div id="vr-hud-score">0 pts</div>
     <div id="vr-hud-timer">00:40</div>
   </div>
-  <!-- Área de toque cobre tela toda para registrar golpes em VR -->
-  <div id="vr-hit-zone" ontouchstart="if(gameActive) handleTouchHit()" onclick="if(gameActive) handleTouchHit()"></div>
+  <button id="vr-exit-btn" onclick="exitStereoVR()" ontouchstart="event.stopPropagation();exitStereoVR()">✕ Sair VR</button>
 </div>
 
 <!-- ===== A-FRAME SCENE ===== -->
