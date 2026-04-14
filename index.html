@@ -1200,9 +1200,12 @@ function beginPhase1() {
   // Frases duram 2800ms cada; 5 frases = ~18s total (sincroniza com narração)
   playPhrases(narrationSub, PHRASES1, 2800, triggerGazeDwell);
 
-  _playAudio(_aud1, triggerGazeDwell);
-  // Safety max 32s
-  setTimeout(triggerGazeDwell, 32000);
+  // narracao1.mp3 = narração (~15s) + som ambiente (~73s total).
+  // Tocamos sem callback de onended — o áudio continua como ambiente até o jogador
+  // entrar na mina, quando _stopAudio(_aud1) é chamado em triggerMineTransition.
+  _playAudio(_aud1, null);
+  // Dispara hint da mina logo após a narração terminar (~15.2s)
+  setTimeout(triggerGazeDwell, 15200);
 }
 
 // Calculates mine entrance position in 3D space
