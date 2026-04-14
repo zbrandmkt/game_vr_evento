@@ -733,6 +733,13 @@ function requestGyroAndEnter() {
   // Pré-carrega áudios dentro do gesto — desbloqueia autoplay no iOS
   try { _preloadAudio(); } catch(e) {}
 
+  // iOS exige que new Audio().play() seja chamado dentro de gesto do usuário.
+  // "Primamos" os efeitos sonoros com play+pause volume 0 para desbloqueá-los.
+  try {
+    if (_audPick)  { _audPick.volume  = 0; _audPick.play().then(() => { _audPick.pause();  _audPick.currentTime = 0;  _audPick.volume  = 1; }).catch(() => {}); }
+    if (_audRocha) { _audRocha.volume = 0; _audRocha.play().then(() => { _audRocha.pause(); _audRocha.currentTime = 0; _audRocha.volume = 1; }).catch(() => {}); }
+  } catch(e) {}
+
   function showMenu() {
     splash.classList.add('hidden');
     mainMenu.classList.remove('hidden');
