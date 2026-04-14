@@ -350,9 +350,44 @@
       box-shadow: 0 4px 16px rgba(240,81,0,0.5);
       font-family: 'Poppins', sans-serif;
     }
-    /* Esconde botão VR e overlay quando em modo VR estéreo */
-    body.vr-mode #vr-enter-btn { display: none; }
+    /* ===== VR MODE ===== */
     body.vr-mode #overlay-layer { display: none !important; }
+    /* UI dedicada ao modo VR — fica por cima de tudo */
+    #vr-ui {
+      display: none;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 99999; pointer-events: none;
+    }
+    body.vr-mode #vr-ui { display: block; }
+    /* Botão sair VR — visível em ambos os olhos (centro-cima) */
+    #vr-exit-btn {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.6); border: 2px solid rgba(255,139,26,0.8);
+      border-radius: 20px; color: #FF8B1A; font-family: 'Poppins', sans-serif;
+      font-size: 13px; font-weight: 700; padding: 7px 18px;
+      pointer-events: auto; cursor: pointer; letter-spacing: 1px;
+    }
+    /* Área de toque invisível — cobre tela toda em VR para registrar golpes */
+    #vr-hit-zone {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: auto; background: transparent;
+    }
+    /* HUD mínimo VR — placar e tempo flutuando no centro */
+    #vr-hud {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -85px);
+      text-align: center; pointer-events: none;
+      display: none;
+    }
+    body.vr-mode.game-active #vr-hud { display: block; }
+    #vr-hud-score {
+      font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 900;
+      color: #FF8B1A; text-shadow: 0 0 12px rgba(255,139,26,0.8), 0 2px 8px rgba(0,0,0,1);
+    }
+    #vr-hud-timer {
+      font-family: 'DSEG7 Classic', monospace; font-size: 18px; color: #fff;
+      text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,1);
+    }
   </style>
 </head>
 <body>
@@ -468,8 +503,19 @@
     <button class="ranking-close" onclick="closeRanking()">Fechar</button>
   </div>
 
-  <!-- VR Button -->
+  <!-- VR Button (fora do overlay para não sumir) -->
   <button id="vr-enter-btn" onclick="enterVR()">VR</button>
+</div>
+
+<!-- VR UI dedicada — só aparece em body.vr-mode -->
+<div id="vr-ui">
+  <button id="vr-exit-btn" onclick="exitStereoVR()">✕ Sair VR</button>
+  <div id="vr-hud">
+    <div id="vr-hud-score">0 pts</div>
+    <div id="vr-hud-timer">00:40</div>
+  </div>
+  <!-- Área de toque cobre tela toda para registrar golpes em VR -->
+  <div id="vr-hit-zone" ontouchstart="if(gameActive) handleTouchHit()" onclick="if(gameActive) handleTouchHit()"></div>
 </div>
 
 <!-- ===== A-FRAME SCENE ===== -->
@@ -805,7 +851,8 @@ function beginGame() {
   timeRemaining = 40;
   completionTime = null;
 
-  requestWakeLock(); // impede tela de apagar durante o jogo
+  requestWakeLock();
+  document.body.classList.add('game-active');
 
   gameHud.classList.add('active');
   hudScore.classList.add('active');
@@ -821,6 +868,7 @@ function beginGame() {
 
 function stopGame() {
   gameActive = false;
+  document.body.classList.remove('game-active');
   if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
   stopGeoGazeLoop();
   stopMineGazeDwell();
@@ -844,6 +892,7 @@ function updateHUD() {
   const secs = timeRemaining % 60;
   hudTimer.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
   hudCenter.innerHTML = `<span class="hud-progress">${geoWordsRevealed} reveladas</span>`;
+  _vrUpdateHUD(); // espelha no HUD VR quando em modo estéreo
 }
 
 // ===== WEB AUDIO =====
@@ -1627,11 +1676,10 @@ function exportCSV() {
 }
 
 // ===== VR ESTÉREO MANUAL (Cardboard / Shinecon) =====
-// Usa THREE.StereoCamera diretamente — sem WebXR, funciona em iOS e Android
-let _stereoActive   = false;
-let _stereoCamera   = null;
-let _origRender     = null;
-let _stereoSize     = new THREE.Vector2();
+let _stereoActive = false;
+let _stereoCamera = null;
+let _origRender   = null;
+let _stereoSize   = new THREE.Vector2();
 
 function enterVR() {
   _stereoActive ? exitStereoVR() : enterStereoVR();
@@ -1641,22 +1689,20 @@ function enterStereoVR() {
   const scene    = document.querySelector('a-scene');
   const renderer = scene.renderer;
 
-  // Tenta fullscreen + landscape
+  // Fullscreen + landscape
   try { screen.orientation.lock('landscape-primary').catch(() => {}); } catch(e) {}
   try {
     const el = document.documentElement;
-    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen || el.msRequestFullscreen)?.call(el);
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen)?.call(el);
   } catch(e) {}
 
-  // Esconde overlay, mostra somente a cena 3D
   document.body.classList.add('vr-mode');
-  vrEnterBtn.textContent = '✕ VR';
 
-  // Cria StereoCamera (separação ocular padrão 64mm)
+  // StereoCamera — 64mm separação ocular padrão Cardboard
   _stereoCamera = new THREE.StereoCamera();
   _stereoCamera.eyeSep = 0.064;
 
-  // Intercepta renderer.render — divide canvas em olho esquerdo + direito
+  // Intercepta renderer.render e divide o canvas em dois olhos
   _origRender = renderer.render.bind(renderer);
   renderer.render = function(sceneObj, camera) {
     if (!_stereoActive) { _origRender(sceneObj, camera); return; }
@@ -1671,12 +1717,10 @@ function enterStereoVR() {
     renderer.clear();
     renderer.setScissorTest(true);
 
-    // Olho esquerdo
     renderer.setViewport(0, 0, w2, h);
     renderer.setScissor(0, 0, w2, h);
     _origRender(sceneObj, _stereoCamera.cameraL);
 
-    // Olho direito
     renderer.setViewport(w2, 0, w2, h);
     renderer.setScissor(w2, 0, w2, h);
     _origRender(sceneObj, _stereoCamera.cameraR);
@@ -1686,31 +1730,27 @@ function enterStereoVR() {
     renderer.autoClear = prevAutoClear;
   };
 
-  // Toque na tela em VR = golpe da picareta
-  document.addEventListener('touchstart', _vrTouchHit, { passive: true });
-
   _stereoActive = true;
 }
 
 function exitStereoVR() {
   if (!_stereoActive) return;
-  const scene = document.querySelector('a-scene');
-
-  // Restaura render original
-  if (_origRender) { scene.renderer.render = _origRender; _origRender = null; }
+  const renderer = document.querySelector('a-scene').renderer;
+  if (_origRender) { renderer.render = _origRender; _origRender = null; }
   _stereoCamera = null;
   _stereoActive = false;
-
   document.body.classList.remove('vr-mode');
-  vrEnterBtn.textContent = 'VR';
-  document.removeEventListener('touchstart', _vrTouchHit);
-
+  document.body.classList.remove('game-active');
   try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document); } catch(e) {}
   try { screen.orientation.unlock(); } catch(e) {}
 }
 
-function _vrTouchHit() {
-  if (gameActive) handleTouchHit();
+function _vrUpdateHUD() {
+  if (!_stereoActive) return;
+  const s = document.getElementById('vr-hud-score');
+  const t = document.getElementById('vr-hud-timer');
+  if (s) s.textContent = score + ' pts';
+  if (t) t.textContent = String(Math.floor(timeRemaining / 60)).padStart(2,'0') + ':' + String(timeRemaining % 60).padStart(2,'0');
 }
 
 // ===== UTILITIES =====
