@@ -1030,18 +1030,20 @@ function _gamepadAction() {
   if (mainMenu && !mainMenu.classList.contains('hidden')) { startGame(); return; }
 }
 function _gamepadPoll() {
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  for (const gp of pads) {
-    if (!gp) continue;
-    const prev = _gamepadPrev[gp.index] || [];
-    const cur  = [];
-    for (let i = 0; i < gp.buttons.length; i++) {
-      const pressed = !!(gp.buttons[i] && gp.buttons[i].pressed);
-      cur.push(pressed);
-      if (pressed && !prev[i]) _gamepadAction();
+  try {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const gp of pads) {
+      if (!gp) continue;
+      const prev = _gamepadPrev[gp.index] || [];
+      const cur  = [];
+      for (let i = 0; i < gp.buttons.length; i++) {
+        const pressed = !!(gp.buttons[i] && gp.buttons[i].pressed);
+        cur.push(pressed);
+        if (pressed && !prev[i]) _gamepadAction();
+      }
+      _gamepadPrev[gp.index] = cur;
     }
-    _gamepadPrev[gp.index] = cur;
-  }
+  } catch(err) {}
   _gamepadRAF = requestAnimationFrame(_gamepadPoll);
 }
 function _startGamepadPolling() {
@@ -1051,6 +1053,24 @@ function _startGamepadPolling() {
 window.addEventListener('gamepadconnected', _startGamepadPolling);
 // Dá partida mesmo se o gamepad já estiver conectado antes do load
 _startGamepadPolling();
+
+// No iOS, o Shinecon SC-B03 em Modo Jogo (⊙+X) usa protocolo iCade, que envia
+// caracteres de teclado para cada botão (ex: ⊙→'y'/'t', A→'h'/'r', X→'j'/'p').
+// Em Modo Player (⊙+A) envia media keys. Cobrimos tudo via keydown capture.
+let _lastKeyActionAt = 0;
+window.addEventListener('keydown', (e) => {
+  // Ignora se um input/textarea está focado (evita conflito com campo de texto)
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  // Ignora modificadores de teclado normal
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  // Debounce 250ms para cobrir keyrepeat e iCade up/down pairs
+  const now = Date.now();
+  if (now - _lastKeyActionAt < 250) return;
+  _lastKeyActionAt = now;
+  try { _gamepadAction(); } catch(err) {}
+  try { e.preventDefault(); } catch(err) {}
+}, true);
 
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
