@@ -738,6 +738,7 @@ function requestGyroAndEnter() {
   try {
     if (_audPick)  { _audPick.volume  = 0; _audPick.play().then(() => { _audPick.pause();  _audPick.currentTime = 0;  _audPick.volume  = 1; }).catch(() => {}); }
     if (_audRocha) { _audRocha.volume = 0; _audRocha.play().then(() => { _audRocha.pause(); _audRocha.currentTime = 0; _audRocha.volume = 1; }).catch(() => {}); }
+    if (_aud3)     { _aud3.volume     = 0; _aud3.play().then(()     => { _aud3.pause();     _aud3.currentTime     = 0; _aud3.volume     = 1; }).catch(() => {}); }
   } catch(e) {}
 
   function showMenu() {
@@ -1715,6 +1716,7 @@ function endGame() {
 }
 
 function playAgain() {
+  _stopAudio(_aud3); // para narração/ambiente da tela de resultado
   hideAllScreens();
   beginPhase1();
 }
