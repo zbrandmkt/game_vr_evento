@@ -1626,14 +1626,87 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-// ===== VR =====
+// ===== VR ESTÉREO MANUAL (Cardboard / Shinecon) =====
+// Usa THREE.StereoCamera diretamente — sem WebXR, funciona em iOS e Android
+let _stereoActive   = false;
+let _stereoCamera   = null;
+let _origRender     = null;
+let _stereoSize     = new THREE.Vector2();
+
 function enterVR() {
+  _stereoActive ? exitStereoVR() : enterStereoVR();
+}
+
+function enterStereoVR() {
+  const scene    = document.querySelector('a-scene');
+  const renderer = scene.renderer;
+
+  // Tenta fullscreen + landscape
+  try { screen.orientation.lock('landscape-primary').catch(() => {}); } catch(e) {}
+  try {
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen || el.msRequestFullscreen)?.call(el);
+  } catch(e) {}
+
+  // Esconde overlay, mostra somente a cena 3D
+  document.body.classList.add('vr-mode');
+  vrEnterBtn.textContent = '✕ VR';
+
+  // Cria StereoCamera (separação ocular padrão 64mm)
+  _stereoCamera = new THREE.StereoCamera();
+  _stereoCamera.eyeSep = 0.064;
+
+  // Intercepta renderer.render — divide canvas em olho esquerdo + direito
+  _origRender = renderer.render.bind(renderer);
+  renderer.render = function(sceneObj, camera) {
+    if (!_stereoActive) { _origRender(sceneObj, camera); return; }
+
+    _stereoCamera.update(camera);
+    renderer.getSize(_stereoSize);
+    const w2 = Math.floor(_stereoSize.width / 2);
+    const h  = _stereoSize.height;
+
+    const prevAutoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.clear();
+    renderer.setScissorTest(true);
+
+    // Olho esquerdo
+    renderer.setViewport(0, 0, w2, h);
+    renderer.setScissor(0, 0, w2, h);
+    _origRender(sceneObj, _stereoCamera.cameraL);
+
+    // Olho direito
+    renderer.setViewport(w2, 0, w2, h);
+    renderer.setScissor(w2, 0, w2, h);
+    _origRender(sceneObj, _stereoCamera.cameraR);
+
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, _stereoSize.width, _stereoSize.height);
+    renderer.autoClear = prevAutoClear;
+  };
+
+  // Toque na tela em VR = golpe da picareta
+  document.addEventListener('touchstart', _vrTouchHit, { passive: true });
+
+  _stereoActive = true;
+}
+
+function exitStereoVR() {
+  if (!_stereoActive) return;
   const scene = document.querySelector('a-scene');
-  if (scene.is('vr-mode')) {
-    scene.exitVR();
-  } else {
-    scene.enterVR();
-  }
+
+  // Restaura render original
+  if (_origRender) { scene.renderer.render = _origRender; _origRender = null; }
+  _stereoCamera = null;
+  _stereoActive = false;
+
+  document.body.classList.remove('vr-mode');
+  vrEnterBtn.textContent = 'VR';
+  document.removeEventListener('touchstart', _vrTouchHit);
+
+  try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document); } catch(e) {}
+  try { screen.orientation.unlock(); } catch(e) {}
 }
 
 function _vrTouchHit() {
@@ -1666,23 +1739,7 @@ $('player-phone').addEventListener('focus', function() { this.style.borderColor 
 // ===== INIT =====
 // Botão do splash já está habilitado no HTML — sem dependência do A-Frame loaded event
 
-document.addEventListener('DOMContentLoaded', () => {
-  const scene = document.querySelector('a-scene');
-
-  // Entrada em VR: esconde overlay HTML (não renderiza em estéreo) + toque = hit
-  scene.addEventListener('enter-vr', () => {
-    document.body.classList.add('vr-mode');
-    document.addEventListener('touchstart', _vrTouchHit, { passive: true });
-    console.log('[VR] Modo estéreo ativado');
-  });
-
-  // Saída de VR: restaura overlay
-  scene.addEventListener('exit-vr', () => {
-    document.body.classList.remove('vr-mode');
-    document.removeEventListener('touchstart', _vrTouchHit);
-    console.log('[VR] Modo estéreo desativado');
-  });
-});
+// VR estéreo gerenciado manualmente — sem dependência de eventos WebXR do A-Frame
 
 </script>
 </body>
