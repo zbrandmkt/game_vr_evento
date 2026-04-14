@@ -351,7 +351,23 @@
       font-family: 'Poppins', sans-serif;
     }
     /* ===== VR MODE ===== */
-    body.vr-mode #overlay-layer { display: none !important; }
+    /* Esconde apenas elementos de menu — UI do jogo permanece visível */
+    body.vr-mode #splash-screen,
+    body.vr-mode #main-menu,
+    body.vr-mode #back-menu-btn,
+    body.vr-mode #vr-enter-btn,
+    body.vr-mode #ranking-screen,
+    body.vr-mode #touch-hit-zone { display: none !important; }
+    /* Elementos do jogo: deslocados para o olho esquerdo (left 25% = centro do olho esq.) */
+    body.vr-mode #intro-overlay,
+    body.vr-mode #result-screen { width: 50% !important; left: 0 !important; }
+    body.vr-mode #game-hud { width: 50% !important; left: 0 !important; }
+    body.vr-mode #hud-score { left: 25% !important; transform: translateX(-50%) !important; }
+    body.vr-mode #crosshair,
+    body.vr-mode #gaze-ring,
+    body.vr-mode #mine-hint { left: 25% !important; transform: translate(-50%, -50%) !important; }
+    body.vr-mode #narration-sub { left: 25% !important; transform: translate(-50%, 60px) !important; }
+    body.vr-mode #hit-feedback  { left: 25% !important; transform: translate(-50%, -50%) !important; }
     /* UI dedicada ao modo VR — fica por cima de tudo */
     #vr-ui {
       display: none;
@@ -1567,6 +1583,9 @@ function endGame() {
   stopGame();
   hideAllScreens();
 
+  // Sai do modo VR para mostrar a tela de resultado em 2D
+  if (_stereoActive) exitStereoVR();
+
   $('result-score-value').textContent = score + ' pts';
   $('result-detail').textContent = `${geoWordsRevealed} barreira${geoWordsRevealed !== 1 ? 's' : ''} quebrada${geoWordsRevealed !== 1 ? 's' : ''}`;
   lastResult = { game: 'geo', score, time: 40 };
@@ -1702,64 +1721,7 @@ function enterStereoVR() {
   _stereoCamera = new THREE.StereoCamera();
   _stereoCamera.eyeSep = 0.064;
 
-  // RenderTarget offscreen para o barrel distortion pass
-  renderer.getSize(_stereoSize);
-  _vrRT = new THREE.WebGLRenderTarget(_stereoSize.width, _stereoSize.height, {
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    format: THREE.RGBAFormat
-  });
-
-  // Shader de barrel distortion (corrige pincushion das lentes Cardboard)
-  // Parâmetros Google Cardboard v1: k1=0.441, k2=0.156
-  _vrDistortScene  = new THREE.Scene();
-  _vrDistortCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  _vrDistortMesh   = new THREE.Mesh(
-    new THREE.PlaneGeometry(2, 2),
-    new THREE.ShaderMaterial({
-      uniforms: {
-        tDiffuse: { value: _vrRT.texture },
-        k1:       { value: 0.441 },
-        k2:       { value: 0.156 }
-      },
-      depthTest: false, depthWrite: false,
-      vertexShader: `
-        varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
-      `,
-      fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform float k1;
-        uniform float k2;
-        varying vec2 vUv;
-        void main() {
-          bool left = vUv.x < 0.5;
-          // Remap para espaço [0,1] de cada olho
-          vec2 e = left ? vec2(vUv.x * 2.0, vUv.y)
-                        : vec2((vUv.x - 0.5) * 2.0, vUv.y);
-          // Barrel distortion: d * (1 + k1*r² + k2*r⁴) empurra borda para fora
-          // corrigindo o pincushion das lentes
-          vec2 d  = e - 0.5;
-          float r2 = dot(d, d);
-          vec2 dist = 0.5 + d * (1.0 + k1*r2 + k2*r2*r2);
-          // Fora dos limites = preto
-          if (dist.x < 0.0 || dist.x > 1.0 || dist.y < 0.0 || dist.y > 1.0) {
-            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            return;
-          }
-          // Reconverte para UV da textura completa (0..0.5 esquerdo, 0.5..1 direito)
-          vec2 uv = left ? vec2(dist.x * 0.5, dist.y)
-                         : vec2(dist.x * 0.5 + 0.5, dist.y);
-          gl_FragColor = texture2D(tDiffuse, uv);
-        }
-      `
-    })
-  );
-  _vrDistortScene.add(_vrDistortMesh);
-
-  // Intercepta renderer.render:
-  //  1) Render estéreo → offscreen RT
-  //  2) Barrel distortion → tela
+  // Intercepta renderer.render — renderiza cada olho na sua metade da tela
   _origRender = renderer.render.bind(renderer);
   renderer.render = function(sceneObj, camera) {
     if (!_stereoActive) { _origRender(sceneObj, camera); return; }
@@ -1771,28 +1733,21 @@ function enterStereoVR() {
 
     const prevAutoClear = renderer.autoClear;
     renderer.autoClear = false;
-
-    // Fase 1: renderiza olhos no render target offscreen
-    renderer.setRenderTarget(_vrRT);
-    renderer.clear();
     renderer.setScissorTest(true);
 
+    // Olho esquerdo — metade esquerda da tela
     renderer.setViewport(0, 0, w2, h);
     renderer.setScissor(0, 0, w2, h);
+    renderer.clear();
     _origRender(sceneObj, _stereoCamera.cameraL);
 
+    // Olho direito — metade direita da tela
     renderer.setViewport(w2, 0, w2, h);
     renderer.setScissor(w2, 0, w2, h);
+    renderer.clear();
     _origRender(sceneObj, _stereoCamera.cameraR);
 
     renderer.setScissorTest(false);
-
-    // Fase 2: aplica barrel distortion na tela final
-    renderer.setRenderTarget(null);
-    renderer.setViewport(0, 0, _stereoSize.width, _stereoSize.height);
-    renderer.clear();
-    _origRender(_vrDistortScene, _vrDistortCamera);
-
     renderer.autoClear = prevAutoClear;
   };
 
@@ -1803,17 +1758,8 @@ function exitStereoVR() {
   if (!_stereoActive) return;
   const renderer = document.querySelector('a-scene').renderer;
   if (_origRender) { renderer.render = _origRender; _origRender = null; }
-
-  // Libera memória GPU
-  if (_vrRT)          { _vrRT.dispose(); _vrRT = null; }
-  if (_vrDistortMesh) {
-    _vrDistortMesh.geometry.dispose();
-    _vrDistortMesh.material.dispose();
-    _vrDistortMesh = null;
-  }
-  _vrDistortScene = _vrDistortCamera = null;
-  _stereoCamera   = null;
-  _stereoActive   = false;
+  _stereoCamera = null;
+  _stereoActive = false;
 
   document.body.classList.remove('vr-mode');
   document.body.classList.remove('game-active');
