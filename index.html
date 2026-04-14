@@ -351,23 +351,23 @@
       font-family: 'Poppins', sans-serif;
     }
     /* ===== VR MODE ===== */
-    /* Esconde apenas elementos de menu — UI do jogo permanece visível */
+    /* Esconde apenas elementos de menu/navegação */
     body.vr-mode #splash-screen,
     body.vr-mode #main-menu,
     body.vr-mode #back-menu-btn,
     body.vr-mode #vr-enter-btn,
     body.vr-mode #ranking-screen,
     body.vr-mode #touch-hit-zone { display: none !important; }
-    /* Elementos do jogo: deslocados para o olho esquerdo (left 25% = centro do olho esq.) */
-    body.vr-mode #intro-overlay,
-    body.vr-mode #result-screen { width: 50% !important; left: 0 !important; }
-    body.vr-mode #game-hud { width: 50% !important; left: 0 !important; }
-    body.vr-mode #hud-score { left: 25% !important; transform: translateX(-50%) !important; }
-    body.vr-mode #crosshair,
-    body.vr-mode #gaze-ring,
-    body.vr-mode #mine-hint { left: 25% !important; transform: translate(-50%, -50%) !important; }
-    body.vr-mode #narration-sub { left: 25% !important; transform: translate(-50%, 60px) !important; }
-    body.vr-mode #hit-feedback  { left: 25% !important; transform: translate(-50%, -50%) !important; }
+    /*
+     * overlay-layer em VR: width 50% + transform (torna containing block para
+     * os filhos position:fixed). Assim todos os elementos centrados (left:50%)
+     * caem no centro do olho esquerdo (25% da tela). O espelho JS cobre o olho direito.
+     */
+    body.vr-mode #overlay-layer {
+      transform: translate(0, 0);
+      width: 50%;
+      overflow: hidden;
+    }
     /* UI dedicada ao modo VR — fica por cima de tudo */
     #vr-ui {
       display: none;
@@ -470,9 +470,6 @@
   <!-- NARRATION SUBTITLE -->
   <div id="narration-sub"></div>
 
-  <!-- FADE OVERLAY (transition between phases) -->
-  <div id="fade-overlay"></div>
-
   <!-- GAZE RING (fills during mine entrance gaze dwell) -->
   <div id="gaze-ring">
     <svg width="72" height="72" viewBox="0 0 72 72">
@@ -519,9 +516,13 @@
     <button class="ranking-close" onclick="closeRanking()">Fechar</button>
   </div>
 
-  <!-- VR Button (fora do overlay para não sumir) -->
-  <button id="vr-enter-btn" onclick="enterVR()">VR</button>
 </div>
+
+<!-- FADE OVERLAY — fora do overlay-layer para cobrir os dois olhos em VR -->
+<div id="fade-overlay"></div>
+
+<!-- VR Button — fora do overlay para não sumir em VR -->
+<button id="vr-enter-btn" onclick="enterVR()">VR</button>
 
 <!-- VR UI dedicada — só aparece em body.vr-mode -->
 <div id="vr-ui">
@@ -1583,9 +1584,6 @@ function endGame() {
   stopGame();
   hideAllScreens();
 
-  // Sai do modo VR para mostrar a tela de resultado em 2D
-  if (_stereoActive) exitStereoVR();
-
   $('result-score-value').textContent = score + ' pts';
   $('result-detail').textContent = `${geoWordsRevealed} barreira${geoWordsRevealed !== 1 ? 's' : ''} quebrada${geoWordsRevealed !== 1 ? 's' : ''}`;
   lastResult = { game: 'geo', score, time: 40 };
@@ -1700,6 +1698,56 @@ let _stereoCamera = null;
 let _origRender   = null;
 let _stereoSize   = new THREE.Vector2();
 
+// ===== VR MIRROR — espelha overlay para o olho direito =====
+let _vrMirror            = null;
+let _vrMirrorObserver    = null;
+let _vrMirrorSyncPending = false;
+
+function _createVRMirror() {
+  const overlay = document.getElementById('overlay-layer');
+  if (!overlay || _vrMirror) return;
+
+  // Div que cobre a metade direita da tela (olho direito).
+  // transform:translate(0) faz os filhos position:fixed usarem este div como
+  // containing block, espelhando exatamente o layout do overlay-layer.
+  _vrMirror = document.createElement('div');
+  _vrMirror.id = 'vr-right-eye-overlay';
+  _vrMirror.setAttribute('style', [
+    'position:fixed', 'top:0', 'left:50%', 'width:50%', 'height:100%',
+    'z-index:9999', 'pointer-events:none', 'overflow:hidden',
+    'transform:translate(0,0)'
+  ].join(';'));
+
+  // Insere antes do #vr-ui para ficar sob os controles VR
+  const vrUi = document.getElementById('vr-ui');
+  document.body.insertBefore(_vrMirror, vrUi);
+
+  // Sincroniza innerHTML — debounced a 1 frame para não sobrecarregar
+  function doSync() {
+    if (_vrMirror && overlay) _vrMirror.innerHTML = overlay.innerHTML;
+    _vrMirrorSyncPending = false;
+  }
+  function scheduleSync() {
+    if (_vrMirrorSyncPending) return;
+    _vrMirrorSyncPending = true;
+    requestAnimationFrame(doSync);
+  }
+
+  _vrMirrorObserver = new MutationObserver(scheduleSync);
+  _vrMirrorObserver.observe(overlay, {
+    childList: true, subtree: true,
+    attributes: true, characterData: true
+  });
+
+  doSync(); // sync inicial
+}
+
+function _destroyVRMirror() {
+  if (_vrMirrorObserver) { _vrMirrorObserver.disconnect(); _vrMirrorObserver = null; }
+  if (_vrMirror)         { _vrMirror.remove(); _vrMirror = null; }
+  _vrMirrorSyncPending = false;
+}
+
 function enterVR() {
   _stereoActive ? exitStereoVR() : enterStereoVR();
 }
@@ -1716,6 +1764,9 @@ function enterStereoVR() {
   } catch(e) {}
 
   document.body.classList.add('vr-mode');
+
+  // Cria espelho do overlay para o olho direito
+  _createVRMirror();
 
   // StereoCamera — 64mm separação ocular padrão Cardboard
   _stereoCamera = new THREE.StereoCamera();
@@ -1758,6 +1809,9 @@ function exitStereoVR() {
   if (!_stereoActive) return;
   const renderer = document.querySelector('a-scene').renderer;
   if (_origRender) { renderer.render = _origRender; _origRender = null; }
+
+  _destroyVRMirror();
+
   _stereoCamera = null;
   _stereoActive = false;
 
