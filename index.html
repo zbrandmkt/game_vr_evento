@@ -568,7 +568,7 @@
 
   <!-- ===== ASSETS ===== -->
   <a-assets timeout="15000">
-    <img id="skybox-fora"   src="assets/skybox_fora.jpg"   crossorigin="anonymous">
+    <img id="skybox-fora"   src="assets/skybox_fora2.jpg"  crossorigin="anonymous">
     <img id="skybox-cave"   src="assets/skybox_cave.jpg"   crossorigin="anonymous">
     <img id="skybox-gold"   src="assets/skybox_gold.jpg"   crossorigin="anonymous">
     <img id="logo-presenca" src="assets/logo-branco.png" crossorigin="anonymous">
@@ -733,8 +733,12 @@ function requestGyroAndEnter() {
     window._audioCtxUnlocked = true;
   } catch(e) {}
 
-  // Inicializa vídeo mudo (wake lock) — deve ser dentro de gesto do usuário
+  // Inicializa vídeo mudo (wake lock fallback iOS) — deve ser dentro de gesto do usuário
   try { _initNoSleepVideo(); } catch(e) {}
+
+  // Wake Lock API nativa — Chrome Android + iOS Safari 16.4+.
+  // Funciona sem pop-up de permissão, mas precisa ser requisitada dentro do gesto.
+  try { requestWakeLock(); } catch(e) {}
 
   // Pré-carrega áudios dentro do gesto — desbloqueia autoplay no iOS
   try { _preloadAudio(); } catch(e) {}
@@ -876,13 +880,36 @@ function _initNoSleepVideo() {
 }
 
 function requestWakeLock() {
-  // Apenas vídeo mudo em loop — funciona em iOS e Android sem precisar de API nativa
+  // 1. Vídeo mudo em loop — fallback universal (iOS Safari < 16.4, WebViews antigas)
   try { if (_noSleepVid) _noSleepVid.play().catch(() => {}); } catch(e) {}
+  // 2. API nativa Wake Lock — Chrome Android, iOS Safari 16.4+ (sem pop-up de permissão,
+  //    mas exige gesto do usuário). Mantém a tela acesa como quando se assiste vídeo.
+  if ('wakeLock' in navigator && !_wakeLock) {
+    navigator.wakeLock.request('screen')
+      .then(sentinel => {
+        _wakeLock = sentinel;
+        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+      })
+      .catch(err => console.warn('[WakeLock] request failed:', err && err.message));
+  }
 }
 
 function releaseWakeLock() {
   try { if (_noSleepVid) _noSleepVid.pause(); } catch(e) {}
+  if (_wakeLock) {
+    try { _wakeLock.release(); } catch(e) {}
+    _wakeLock = null;
+  }
 }
+
+// Wake Lock nativa é auto-liberada quando a aba fica oculta. Ao voltar à visibilidade,
+// re-adquire se o jogo ainda estiver ativo (ou em VR).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (gameActive || document.body.classList.contains('vr-mode')) {
+    requestWakeLock();
+  }
+});
 
 function beginGame() {
   gameActive    = true;
