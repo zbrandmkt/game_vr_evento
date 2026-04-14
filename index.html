@@ -115,13 +115,6 @@
     }
     .menu-footer span { color: #FF8B1A; }
 
-    #back-menu-btn {
-      position: fixed; top: 10px; left: 10px; z-index: 10001;
-      background: rgba(255,255,255,0.15); border: none; border-radius: 8px;
-      color: #fff; padding: 8px 14px; font-size: 12px; font-weight: 700;
-      cursor: pointer; display: none;
-    }
-
     /* ===== INTRO OVERLAY ===== */
     #intro-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -352,7 +345,6 @@
     }
     /* ===== VR MODE ===== */
     /* Só esconde navegação específica do modo 2D */
-    body.vr-mode #back-menu-btn,
     body.vr-mode #vr-enter-btn,
     body.vr-mode #ranking-screen,
     body.vr-mode #touch-hit-zone { display: none !important; }
@@ -460,9 +452,6 @@
     </div>
   </div>
 
-  <!-- BACK BUTTON -->
-  <button id="back-menu-btn" onclick="backToMenu()">Menu</button>
-
   <!-- INTRO OVERLAY -->
   <div id="intro-overlay">
     <div id="intro-countdown"></div>
@@ -517,7 +506,6 @@
     <div class="result-detail" id="result-detail"></div>
     <div style="margin-top: 12px;">
       <button class="result-btn" onclick="playAgain()">Jogar Novamente</button>
-      <button class="result-btn secondary" onclick="backToMenu()">Menu</button>
     </div>
   </div>
 
@@ -680,7 +668,6 @@ const touchHitZone  = $('touch-hit-zone');
 const hitFeedback   = $('hit-feedback');
 const resultScreen  = $('result-screen');
 const rankingScreen = $('ranking-screen');
-const backMenuBtn   = $('back-menu-btn');
 const vrEnterBtn    = $('vr-enter-btn');
 const crosshairEl   = $('crosshair');
 const narrationSub  = $('narration-sub');
@@ -779,7 +766,6 @@ function startGame() {
 
 function _doStartGame() {
   mainMenu.classList.add('hidden');
-  backMenuBtn.style.display = 'block';
   vrEnterBtn.style.display = 'flex';
   beginPhase1();
 }
@@ -788,7 +774,6 @@ function backToMenu() {
   stopGame();
   hideAllScreens();
   mainMenu.classList.remove('hidden');
-  backMenuBtn.style.display = 'none';
   vrEnterBtn.style.display = 'none';
   // Reset to exterior
   document.getElementById('game3-world').setAttribute('visible', false);
@@ -1029,6 +1014,43 @@ function swingPickaxe() {
       `property: position; from: ${PICK_STRIKE_POS}; to: ${PICK_REST_POS}; dur: 300; delay: 130; easing: easeOutCubic`);
   }, 0);
 }
+
+// ===== GAMEPAD (VR Shinecon SC-B03 / controles Bluetooth HID) =====
+// Qualquer botão do controle (⊙ Confirmação, A, X, B, Y) dispara a ação
+// principal do contexto: iniciar partida no menu, golpe durante o jogo,
+// ou jogar novamente na tela de resultado.
+let _gamepadRAF = null;
+let _gamepadPrev = {};
+function _gamepadAction() {
+  // Golpe durante o jogo
+  if (gameActive) { handleTouchHit(); return; }
+  // Jogar novamente na tela de resultado
+  if (resultScreen && resultScreen.classList.contains('active')) { playAgain(); return; }
+  // Iniciar partida no menu principal (se já passou do splash)
+  if (mainMenu && !mainMenu.classList.contains('hidden')) { startGame(); return; }
+}
+function _gamepadPoll() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const gp of pads) {
+    if (!gp) continue;
+    const prev = _gamepadPrev[gp.index] || [];
+    const cur  = [];
+    for (let i = 0; i < gp.buttons.length; i++) {
+      const pressed = !!(gp.buttons[i] && gp.buttons[i].pressed);
+      cur.push(pressed);
+      if (pressed && !prev[i]) _gamepadAction();
+    }
+    _gamepadPrev[gp.index] = cur;
+  }
+  _gamepadRAF = requestAnimationFrame(_gamepadPoll);
+}
+function _startGamepadPolling() {
+  if (_gamepadRAF) return;
+  _gamepadRAF = requestAnimationFrame(_gamepadPoll);
+}
+window.addEventListener('gamepadconnected', _startGamepadPolling);
+// Dá partida mesmo se o gamepad já estiver conectado antes do load
+_startGamepadPolling();
 
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
