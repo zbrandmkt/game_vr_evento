@@ -679,11 +679,14 @@ const mineHint      = $('mine-hint');
 // ===== AUDIO PRÉ-CARREGADO =====
 // Objetos criados uma vez e reutilizados — evita bloqueio de autoplay no iOS
 let _aud1 = null, _aud2 = null, _aud3 = null;
+let _audPick = null, _audRocha = null;
 
 function _preloadAudio() {
   _aud1 = new Audio('assets/narracao1.mp3'); _aud1.load();
   _aud2 = new Audio('assets/narracao2.mp3'); _aud2.load();
   _aud3 = new Audio('assets/narracao3.mp3'); _aud3.load();
+  _audPick  = new Audio('assets/picaretasound.MP3'); _audPick.load();
+  _audRocha = new Audio('assets/rochaquebrando.MP3'); _audRocha.load();
 }
 
 function _playAudio(aud, onEnded) {
@@ -925,6 +928,7 @@ function stopGame() {
   stopMineGazeDwell();
   releaseWakeLock();
   cleanupGeoWords();
+  _stopAudio(_aud2); // para o ambiente do jogo ao encerrar
 }
 
 function cleanupGeoWords() {
@@ -1012,6 +1016,13 @@ function swingPickaxe() {
       `property: rotation; from: ${PICK_STRIKE_ROT}; to: ${PICK_REST_ROT}; dur: 300; delay: 130; easing: easeOutBack`);
     p.setAttribute('animation__returnPos',
       `property: position; from: ${PICK_STRIKE_POS}; to: ${PICK_REST_POS}; dur: 300; delay: 130; easing: easeOutCubic`);
+    // Som da picareta no momento do impacto (coincide com fim do strike)
+    setTimeout(() => {
+      if (_audPick) {
+        _audPick.currentTime = 0;
+        _audPick.play().catch(() => {});
+      }
+    }, 130);
   }, 0);
 }
 
@@ -1353,9 +1364,11 @@ function beginPhase2() {
   // Frases duram 3200ms cada; 2 frases = ~8s (sincroniza com narração)
   playPhrases(narrationSub, PHRASES2, 3200, doPhase2Countdown);
 
-  _playAudio(_aud2, doPhase2Countdown);
-  // Safety max 20s
-  setTimeout(doPhase2Countdown, 20000);
+  // narracao2.mp3 = narração (~5s) + som ambiente (~48s total, cobre o jogo de 40s).
+  // Sem onended — áudio continua como fundo durante o jogo. _stopAudio em stopGame().
+  _playAudio(_aud2, null);
+  // Dispara countdown logo após a narração terminar (~5s)
+  setTimeout(doPhase2Countdown, 5000);
 }
 
 function spawnGeode() {
@@ -1547,7 +1560,13 @@ function shatterPanel(panel) {
   panel.el.removeObject3D('panel-mesh');
   if (panel.el.parentNode) panel.el.parentNode.removeChild(panel.el);
 
-  playShatterSound();
+  // Som da rocha quebrando (MP3 real) — fallback para síntese se não carregou
+  if (_audRocha) {
+    _audRocha.currentTime = 0;
+    _audRocha.play().catch(() => { playShatterSound(); });
+  } else {
+    playShatterSound();
+  }
 
   // Score
   score += panel.hasWord ? (panel.word.pts) : 50;
