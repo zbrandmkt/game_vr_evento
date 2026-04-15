@@ -1397,6 +1397,11 @@ function hidePhrases(el) {
 
 // ===== PHASE 1: EXTERIOR =====
 function beginPhase1() {
+  // Para QUALQUER áudio anterior (resultado, jogo, narração) antes de iniciar
+  _stopAudio(_aud1);
+  _stopAudio(_aud2);
+  _stopAudio(_aud3);
+
   hideAllScreens();
   narrationSub.classList.add('active');
   narrationSub.textContent = '';
@@ -1930,7 +1935,6 @@ function endGame() {
 }
 
 function playAgain() {
-  _stopAudio(_aud3); // para narração/ambiente da tela de resultado
   hideAllScreens();
   beginPhase1();
 }
