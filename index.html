@@ -444,6 +444,21 @@
 
     <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
 
+    <!-- Controles de calibração VR (giroscópio e tamanho de tela) -->
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+      <button id="gyro-flip-btn" class="menu-btn secondary"
+        onclick="toggleGyroFlip()"
+        style="font-size:11px;padding:8px 12px;">↔ Giroscópio: Normal</button>
+      <button class="menu-btn secondary"
+        onclick="adjustVrScale(-0.05)"
+        style="font-size:14px;padding:8px 14px;width:44px;">−</button>
+      <span id="vr-scale-label"
+        style="color:#FF8B1A;font-size:12px;line-height:2.6;white-space:nowrap;">Tela VR 100%</span>
+      <button class="menu-btn secondary"
+        onclick="adjustVrScale(0.05)"
+        style="font-size:14px;padding:8px 14px;width:44px;">+</button>
+    </div>
+
     <div class="menu-footer">
       Workshop Corban360 — 16 e 17 de Abril, 2026
       <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;font-size:10px;color:#FF8B1A;letter-spacing:0.3px;">
@@ -586,6 +601,7 @@
       id="main-camera"
       position="0 1.6 0"
       look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
+      gyro-flip="enabled: false"
       wasd-controls="enabled: false">
       <!-- First-person pickaxe (Game 2 only) — Minecraft-style lower-right -->
       <a-gltf-model
@@ -611,6 +627,22 @@
   <!-- Global ambient -->
   <a-light type="ambient" color="#333" intensity="0.4"></a-light>
 </a-scene>
+
+<script>
+// Componente A-Frame: inverte eixo horizontal do giroscópio
+// Útil para celulares grandes (ex: Redmi 14C) onde o eixo vem espelhado no óculos.
+AFRAME.registerComponent('gyro-flip', {
+  schema: { enabled: { default: false } },
+  init: function() { this._euler = new THREE.Euler(); },
+  tick: function() {
+    if (!this.data.enabled) return;
+    const e = this._euler;
+    e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
+    e.y = -e.y;
+    this.el.object3D.quaternion.setFromEuler(e);
+  }
+});
+</script>
 
 <script>
 // ===================================================================
@@ -1909,6 +1941,24 @@ let _stereoCamera = null;
 let _origRender   = null;
 let _stereoSize   = new THREE.Vector2();
 
+// Calibração VR: tamanho da área renderizada (0.6–1.0) e flip de giroscópio
+let _vrScale = 1.0;
+let _gyroFlipEnabled = false;
+
+function toggleGyroFlip() {
+  _gyroFlipEnabled = !_gyroFlipEnabled;
+  const cam = document.getElementById('main-camera');
+  cam.setAttribute('gyro-flip', 'enabled: ' + _gyroFlipEnabled);
+  const btn = document.getElementById('gyro-flip-btn');
+  if (btn) btn.textContent = '↔ Giroscópio: ' + (_gyroFlipEnabled ? 'Invertido' : 'Normal');
+}
+
+function adjustVrScale(delta) {
+  _vrScale = Math.round(Math.min(1.0, Math.max(0.6, _vrScale + delta)) * 100) / 100;
+  const lbl = document.getElementById('vr-scale-label');
+  if (lbl) lbl.textContent = 'Tela VR ' + Math.round(_vrScale * 100) + '%';
+}
+
 // ===== VR MIRROR — espelha overlay para o olho direito =====
 let _vrMirror            = null;
 let _vrMirrorObserver    = null;
@@ -1990,22 +2040,30 @@ function enterStereoVR() {
 
     _stereoCamera.update(camera);
     renderer.getSize(_stereoSize);
-    const w2 = Math.floor(_stereoSize.width / 2);
-    const h  = _stereoSize.height;
+    const fullW = _stereoSize.width;
+    const fullH = _stereoSize.height;
+
+    // _vrScale < 1.0 cria bordas pretas (útil para celulares grandes no óculos)
+    const sw = Math.floor(fullW * _vrScale);
+    const sh = Math.floor(fullH * _vrScale);
+    const ox = Math.floor((fullW - sw) / 2); // margem horizontal
+    const oy = Math.floor((fullH - sh) / 2); // margem vertical
+    const w2 = Math.floor(sw / 2);
 
     const prevAutoClear = renderer.autoClear;
     renderer.autoClear = false;
     renderer.setScissorTest(true);
+    renderer.clear(); // limpa bordas para preto
 
-    // Olho esquerdo — metade esquerda da tela
-    renderer.setViewport(0, 0, w2, h);
-    renderer.setScissor(0, 0, w2, h);
+    // Olho esquerdo
+    renderer.setViewport(ox, oy, w2, sh);
+    renderer.setScissor(ox, oy, w2, sh);
     renderer.clear();
     _origRender(sceneObj, _stereoCamera.cameraL);
 
-    // Olho direito — metade direita da tela
-    renderer.setViewport(w2, 0, w2, h);
-    renderer.setScissor(w2, 0, w2, h);
+    // Olho direito
+    renderer.setViewport(ox + w2, oy, w2, sh);
+    renderer.setScissor(ox + w2, oy, w2, sh);
     renderer.clear();
     _origRender(sceneObj, _stereoCamera.cameraR);
 
