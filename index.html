@@ -601,7 +601,7 @@
       id="main-camera"
       position="0 1.6 0"
       look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
-      landscape-gyro-fix="flipH: false"
+      gyro-flip="enabled: false"
       wasd-controls="enabled: false">
       <!-- First-person pickaxe (Game 2 only) — Minecraft-style lower-right -->
       <a-gltf-model
@@ -629,72 +629,17 @@
 </a-scene>
 
 <script>
-// ===== GYRO LANDSCAPE FIX =====
-// Substitui o tracking do A-Frame por implementação correta para modo paisagem.
-// O A-Frame usa magicWindowTrackingEnabled que ignora o ângulo real da tela em
-// alguns Android (Redmi, Samsung), causando o eixo de giro ir para o ombro.
-// Usamos a fórmula de quaternion do Three.js DeviceOrientationControls com
-// detecção automática de landscape (forçamos orient=90 se necessário).
-AFRAME.registerComponent('landscape-gyro-fix', {
-  schema: { flipH: { default: false } },
-  init: function() {
-    this._q    = new THREE.Quaternion();
-    this._euler= new THREE.Euler();
-    this._zee  = new THREE.Vector3(0, 0, 1);
-    this._q0   = new THREE.Quaternion();
-    // q1: câmera olha para fora do fundo do dispositivo (padrão Three.js)
-    this._q1   = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
-    this._D    = Math.PI / 180;
-    this._alpha= 0; this._beta= 0; this._gamma= 0;
-    this._hasData = false;
-
-    this._handler = (e) => {
-      if (e.beta === null) return;
-      this._alpha = e.alpha || 0;
-      this._beta  = e.beta  || 0;
-      this._gamma = e.gamma || 0;
-      this._hasData = true;
-    };
-    window.addEventListener('deviceorientation', this._handler, true);
-
-    // Desativa o gyro do A-Frame (mantém touchEnabled para toque no menu)
-    this.el.setAttribute('look-controls',
-      'magicWindowTrackingEnabled: false; touchEnabled: true; pointerLockEnabled: false');
-  },
-
+// Componente A-Frame: inverte eixo horizontal do giroscópio
+// Útil para celulares grandes (ex: Redmi 14C) onde o eixo vem espelhado no óculos.
+AFRAME.registerComponent('gyro-flip', {
+  schema: { enabled: { default: false } },
+  init: function() { this._euler = new THREE.Euler(); },
   tick: function() {
-    if (!this._hasData) return;
-    const { _alpha:a, _beta:b, _gamma:g, _euler:euler,
-            _zee:zee, _q0:q0, _q1:q1, _q:q, _D:D } = this;
-
-    // Detecta landscape — se screen.orientation.angle == 0 mas é landscape, força 90°
-    let orient = 0;
-    try {
-      orient = (screen.orientation && screen.orientation.angle != null)
-        ? screen.orientation.angle
-        : (window.orientation || 0);
-    } catch(e2) {}
-    if (orient === 0 && window.innerWidth > window.innerHeight) orient = 90;
-
-    // Fórmula padrão Three.js DeviceOrientationControls (corrige landscape)
-    euler.set(b * D, a * D, -(g * D), 'YXZ');
-    q.setFromEuler(euler);
-    q.multiply(q1);
-    q.multiply(q0.setFromAxisAngle(zee, -(orient * D)));
-
-    // Flip horizontal opcional (botão do menu)
-    if (this.data.flipH) {
-      const ef = this._euler;
-      ef.setFromQuaternion(q, 'YXZ');
-      ef.y = -ef.y;
-      q.setFromEuler(ef);
-    }
-
-    this.el.object3D.quaternion.copy(q);
-  },
-
-  remove: function() {
-    window.removeEventListener('deviceorientation', this._handler, true);
+    if (!this.data.enabled) return;
+    const e = this._euler;
+    e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
+    e.y = -e.y;
+    this.el.object3D.quaternion.setFromEuler(e);
   }
 });
 </script>
@@ -874,11 +819,9 @@ function requestGyroAndEnter() {
   }
 
   function _activateLookControls() {
-    // landscape-gyro-fix já gerencia o giroscópio com correção de eixos.
-    // Apenas garantimos que look-controls não sobrescreve o componente.
     try {
       const cam = document.getElementById('main-camera');
-      cam.setAttribute('look-controls', 'magicWindowTrackingEnabled: false; touchEnabled: true; pointerLockEnabled: false');
+      cam.setAttribute('look-controls', 'pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true');
     } catch(e) {}
   }
 
@@ -2005,7 +1948,7 @@ let _gyroFlipEnabled = false;
 function toggleGyroFlip() {
   _gyroFlipEnabled = !_gyroFlipEnabled;
   const cam = document.getElementById('main-camera');
-  cam.setAttribute('landscape-gyro-fix', 'flipH: ' + _gyroFlipEnabled);
+  cam.setAttribute('gyro-flip', 'enabled: ' + _gyroFlipEnabled);
   const btn = document.getElementById('gyro-flip-btn');
   if (btn) btn.textContent = '↔ Giroscópio: ' + (_gyroFlipEnabled ? 'Invertido' : 'Normal');
 }
