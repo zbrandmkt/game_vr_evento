@@ -629,17 +629,40 @@
 </a-scene>
 
 <script>
-// Componente A-Frame: inverte eixo horizontal do giroscópio
-// Útil para celulares grandes (ex: Redmi 14C) onde o eixo vem espelhado no óculos.
+// Componente A-Frame: inverte eixo horizontal do giroscópio e corrige
+// eixo landscape em Android que reporta screen.orientation.angle = 0 em landscape.
 AFRAME.registerComponent('gyro-flip', {
-  schema: { enabled: { default: false } },
-  init: function() { this._euler = new THREE.Euler(); },
+  schema: {
+    enabled:      { default: false }, // inverte eixo Y (esq<->dir)
+    landscapeFix: { default: true  }  // corrige eixo roll/yaw em landscape
+  },
+  init: function() {
+    this._euler = new THREE.Euler();
+    this._qFix  = new THREE.Quaternion();
+    this._zee   = new THREE.Vector3(0, 0, 1);
+  },
   tick: function() {
-    if (!this.data.enabled) return;
-    const e = this._euler;
-    e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
-    e.y = -e.y;
-    this.el.object3D.quaternion.setFromEuler(e);
+    // --- Correção de landscape automática ---
+    // Quando o celular está em landscape mas screen.orientation.angle continua
+    // reportando 0 (bug comum em Redmi/Xiaomi), o look-controls trata o eixo
+    // errado: inclinar a cabeça para o lado vira a cena em vez de girar.
+    // Solução: pós-multiplicar quaternion por -90° em Z para corrigir o mapeamento.
+    if (this.data.landscapeFix) {
+      const orientAngle = (screen.orientation && screen.orientation.angle != null)
+                          ? screen.orientation.angle : 0;
+      const isLandscape = window.innerWidth > window.innerHeight;
+      if (orientAngle === 0 && isLandscape) {
+        this._qFix.setFromAxisAngle(this._zee, -Math.PI / 2);
+        this.el.object3D.quaternion.multiply(this._qFix);
+      }
+    }
+    // --- Inversão de eixo Y (habilitada manualmente pelo botão) ---
+    if (this.data.enabled) {
+      const e = this._euler;
+      e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
+      e.y = -e.y;
+      this.el.object3D.quaternion.setFromEuler(e);
+    }
   }
 });
 </script>
@@ -1973,6 +1996,8 @@ function _applyVrOverlayScale() {
   // Cada olho começa em ox = (1 - _vrScale)/2 * 100% da tela
   const shift = ((1 - s) / 2 * 100).toFixed(2) + '%';
   overlay.style.marginLeft = shift;
+  // Sincroniza zoom do espelho (olho direito) para manter os dois olhos iguais
+  if (_vrMirror) _vrMirror.style.zoom = s;
 }
 
 function _resetVrOverlayScale() {
@@ -1999,7 +2024,8 @@ function _createVRMirror() {
   _vrMirror.setAttribute('style', [
     'position:fixed', 'top:0', 'left:50%', 'width:50%', 'height:100%',
     'z-index:9999', 'pointer-events:none', 'overflow:hidden',
-    'transform:translate(0,0)'
+    'transform:translate(0,0)',
+    'zoom:' + _vrScale
   ].join(';'));
 
   // Insere antes do #vr-ui para ficar sob os controles VR
