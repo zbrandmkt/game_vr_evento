@@ -702,6 +702,21 @@ function _preloadAudio() {
   _audRocha = new Audio('assets/rochaquebrando.MP3'); _audRocha.load();
 }
 
+// Media Session API: intercepta o botão físico Play/Pause (⊙ do Shinecon)
+// antes do iOS processar. Funciona enquanto há áudio tocando na página.
+let _mediaSessionReady = false;
+function _setupMediaSession() {
+  if (_mediaSessionReady || !('mediaSession' in navigator)) return;
+  _mediaSessionReady = true;
+  const handler = () => { try { _gamepadAction(); } catch(e) {} };
+  try { navigator.mediaSession.setActionHandler('play',  handler); } catch(e) {}
+  try { navigator.mediaSession.setActionHandler('pause', handler); } catch(e) {}
+  // Metadados mínimos para iOS reconhecer a sessão de mídia
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: 'Presença Game Stand' });
+  } catch(e) {}
+}
+
 function _playAudio(aud, onEnded) {
   if (!aud) return;
   try {
@@ -711,6 +726,8 @@ function _playAudio(aud, onEnded) {
     }
     const p = aud.play();
     if (p && p.catch) p.catch(() => { if (onEnded) onEnded(); });
+    // Ativa Media Session assim que qualquer áudio começa
+    _setupMediaSession();
   } catch(e) { if (onEnded) onEnded(); }
 }
 
@@ -745,6 +762,8 @@ function requestGyroAndEnter() {
 
   // Pré-carrega áudios dentro do gesto — desbloqueia autoplay no iOS
   try { _preloadAudio(); } catch(e) {}
+  // Media Session: registra handlers para interceptar ⊙ Play/Pause do controle
+  try { _setupMediaSession(); } catch(e) {}
 
   // iOS exige que new Audio().play() seja chamado dentro de gesto do usuário.
   // "Primamos" os efeitos sonoros com play+pause volume 0 para desbloqueá-los.
