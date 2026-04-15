@@ -446,6 +446,9 @@
 
     <!-- Controles de calibração VR (giroscópio e tamanho de tela) -->
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+      <button id="vr-orient-btn" class="menu-btn secondary"
+        onclick="cycleVrOrient()"
+        style="font-size:11px;padding:8px 12px;">🔄 Eixo +90°</button>
       <button id="gyro-flip-btn" class="menu-btn secondary"
         onclick="toggleGyroFlip()"
         style="font-size:11px;padding:8px 12px;">↔ Giroscópio: Normal</button>
@@ -519,6 +522,8 @@
     <div>🎮 <span id="dbg-gp">Gamepad: —</span></div>
     <div>⌨️ <span id="dbg-key">Key: —</span></div>
     <div>🕹 <span id="dbg-state">State: —</span></div>
+    <div>📡 <span id="dbg-gyro">Sensor: —</span></div>
+    <div>🧭 <span id="dbg-orient">Orient: —</span></div>
   </div>
 
   <!-- TOUCH HIT ZONE (Game 2 fallback) -->
@@ -602,7 +607,8 @@
       position="0 1.6 0"
       look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true"
       gyro-flip="enabled: false"
-      wasd-controls="enabled: false">
+      wasd-controls="enabled: false"
+      vr-gyro-custom="active: false; orientDeg: 90">
       <!-- First-person pickaxe (Game 2 only) — Minecraft-style lower-right -->
       <a-gltf-model
         id="picareta-fp"
@@ -629,40 +635,85 @@
 </a-scene>
 
 <script>
-// Componente A-Frame: inverte eixo horizontal do giroscópio e corrige
-// eixo landscape em Android que reporta screen.orientation.angle = 0 em landscape.
+// gyro-flip: inverte eixo Y do giroscópio (esquerda ↔ direita).
+// Só aplica se vr-gyro-custom NÃO estiver ativo (para evitar conflito).
 AFRAME.registerComponent('gyro-flip', {
-  schema: {
-    enabled:      { default: false }, // inverte eixo Y (esq<->dir)
-    landscapeFix: { default: true  }  // corrige eixo roll/yaw em landscape
-  },
-  init: function() {
-    this._euler = new THREE.Euler();
-    this._qFix  = new THREE.Quaternion();
-    this._zee   = new THREE.Vector3(0, 0, 1);
-  },
+  schema: { enabled: { default: false } },
+  init: function() { this._euler = new THREE.Euler(); },
   tick: function() {
-    // --- Correção de landscape automática ---
-    // Quando o celular está em landscape mas screen.orientation.angle continua
-    // reportando 0 (bug comum em Redmi/Xiaomi), o look-controls trata o eixo
-    // errado: inclinar a cabeça para o lado vira a cena em vez de girar.
-    // Solução: pós-multiplicar quaternion por -90° em Z para corrigir o mapeamento.
-    if (this.data.landscapeFix) {
-      const orientAngle = (screen.orientation && screen.orientation.angle != null)
-                          ? screen.orientation.angle : 0;
-      const isLandscape = window.innerWidth > window.innerHeight;
-      if (orientAngle === 0 && isLandscape) {
-        this._qFix.setFromAxisAngle(this._zee, -Math.PI / 2);
-        this.el.object3D.quaternion.multiply(this._qFix);
-      }
+    if (!this.data.enabled) return;
+    // Se o componente vr-gyro-custom estiver ativo, ele já lida com o flip
+    const custom = this.el.components['vr-gyro-custom'];
+    if (custom && custom.data.active) return;
+    const e = this._euler;
+    e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
+    e.y = -e.y;
+    this.el.object3D.quaternion.setFromEuler(e);
+  }
+});
+
+// vr-gyro-custom: substitui o trackign de orientação do look-controls no modo VR.
+// Usa a fórmula correta do Three.js DeviceOrientationControls com 'orientDeg'
+// EXPLÍCITO — independente do que window.orientation ou screen.orientation.angle retornam.
+// Roda DEPOIS de gyro-flip na ordem de tick (último componente no <a-camera>).
+AFRAME.registerComponent('vr-gyro-custom', {
+  schema: {
+    active:    { default: false },
+    orientDeg: { default: 90 }   // 90 = landscape-primary, -90 = landscape-secondary
+  },
+  init: function () {
+    this._e1  = new THREE.Euler();
+    this._e2  = new THREE.Euler();
+    this._q   = new THREE.Quaternion();
+    this._q1  = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 em X
+    this._q0  = new THREE.Quaternion();
+    this._zee = new THREE.Vector3(0, 0, 1);
+    this._a = 0; this._b = 0; this._g = 0;
+    this._ok = false;
+
+    this._onOrient = (ev) => {
+      if (ev.alpha == null) return;
+      this._a  = THREE.MathUtils.degToRad(ev.alpha);
+      this._b  = THREE.MathUtils.degToRad(ev.beta  || 0);
+      this._g  = THREE.MathUtils.degToRad(ev.gamma || 0);
+      this._ok = true;
+      // Atualiza painel de diagnóstico (se aberto)
+      if (typeof _dbgGyro === 'function') _dbgGyro(ev.alpha, ev.beta, ev.gamma);
+    };
+  },
+  update: function (oldData) {
+    const was = oldData.active, is = this.data.active;
+    if (is && !was) {
+      window.addEventListener('deviceorientation', this._onOrient, true);
+    } else if (!is && was) {
+      window.removeEventListener('deviceorientation', this._onOrient, true);
+      this._ok = false;
     }
-    // --- Inversão de eixo Y (habilitada manualmente pelo botão) ---
-    if (this.data.enabled) {
-      const e = this._euler;
-      e.setFromQuaternion(this.el.object3D.quaternion, 'YXZ');
-      e.y = -e.y;
-      this.el.object3D.quaternion.setFromEuler(e);
+  },
+  remove: function () {
+    window.removeEventListener('deviceorientation', this._onOrient, true);
+  },
+  tick: function () {
+    if (!this.data.active || !this._ok) return;
+
+    // Fórmula Three.js DeviceOrientationControls com orient EXPLÍCITO:
+    // Q = Euler(β, α, -γ, YXZ) × Q(-90°, X) × Q(-orient, Z)
+    const orient = THREE.MathUtils.degToRad(this.data.orientDeg);
+    this._e1.set(this._b, this._a, -this._g, 'YXZ');
+    this._q.setFromEuler(this._e1);
+    this._q.multiply(this._q1);                         // device → world frame
+    this._q0.setFromAxisAngle(this._zee, -orient);      // compensação landscape
+    this._q.multiply(this._q0);
+
+    // Inversão Y se botão "Giroscópio Invertido" estiver ativo
+    if (typeof _gyroFlipEnabled !== 'undefined' && _gyroFlipEnabled) {
+      this._e2.setFromQuaternion(this._q, 'YXZ');
+      this._e2.y = -this._e2.y;
+      this._q.setFromEuler(this._e2);
     }
+
+    // Sobrescreve a câmera (roda por último, após look-controls e gyro-flip)
+    this.el.object3D.quaternion.copy(this._q);
   }
 });
 </script>
@@ -1976,6 +2027,46 @@ function toggleGyroFlip() {
   if (btn) btn.textContent = '↔ Giroscópio: ' + (_gyroFlipEnabled ? 'Invertido' : 'Normal');
 }
 
+// ===== VR GYRO ORIENT MODE =====
+// Cicla entre: Auto (look-controls padrão) → +90° → -90°
+// +90° = landscape-primary (topo do celular aponta para a direita no óculos)
+// -90° = landscape-secondary (topo do celular aponta para a esquerda no óculos)
+let _vrOrientMode = 1; // começa em +90° (mais comum para Cardboard/Shinecon)
+const _VR_ORIENT_LABELS  = ['Auto (padrão)', 'Eixo +90°', 'Eixo −90°'];
+const _VR_ORIENT_DEGREES = [null, 90, -90];
+
+function cycleVrOrient() {
+  _vrOrientMode = (_vrOrientMode + 1) % 3;
+  const btn = document.getElementById('vr-orient-btn');
+  if (btn) btn.textContent = '🔄 ' + _VR_ORIENT_LABELS[_vrOrientMode];
+  _applyVrOrientMode();
+}
+
+function _applyVrOrientMode() {
+  const cam = document.getElementById('main-camera');
+  if (!cam || !cam.components) return;
+  if (_vrOrientMode === 0) {
+    // Modo Auto: desativa componente custom, deixa look-controls agir
+    cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
+  } else {
+    const deg = _VR_ORIENT_DEGREES[_vrOrientMode];
+    cam.setAttribute('vr-gyro-custom', 'active: true; orientDeg: ' + deg);
+  }
+}
+
+// Exibe valores do sensor no painel de diagnóstico (ativado com 5 taps no timer)
+function _dbgGyro(a, b, g) {
+  const elG = document.getElementById('dbg-gyro');
+  const elO = document.getElementById('dbg-orient');
+  if (elG) elG.textContent = 'α:' + (a||0).toFixed(1) + '° β:' + (b||0).toFixed(1) + '° γ:' + (g||0).toFixed(1) + '°';
+  if (elO) {
+    const soa = (screen.orientation && screen.orientation.angle != null) ? screen.orientation.angle : '?';
+    const wo  = (window.orientation !== undefined && window.orientation !== null) ? window.orientation : '?';
+    const mode = _VR_ORIENT_LABELS[_vrOrientMode] || '?';
+    elO.textContent = 'scr:' + soa + '° win:' + wo + '° | ' + mode;
+  }
+}
+
 function adjustVrScale(delta) {
   _vrScale = Math.round(Math.min(1.0, Math.max(0.6, _vrScale + delta)) * 100) / 100;
   const lbl = document.getElementById('vr-scale-label');
@@ -2081,6 +2172,9 @@ function enterStereoVR() {
   // Escala overlay junto com o canvas
   _applyVrOverlayScale();
 
+  // Ativa componente de giroscópio customizado (corrige eixo landscape)
+  _applyVrOrientMode();
+
   // StereoCamera — 64mm separação ocular padrão Cardboard
   _stereoCamera = new THREE.StereoCamera();
   _stereoCamera.eyeSep = 0.064;
@@ -2133,6 +2227,10 @@ function exitStereoVR() {
 
   _destroyVRMirror();
   _resetVrOverlayScale();
+
+  // Desativa giroscópio customizado ao sair do modo VR
+  const cam = document.getElementById('main-camera');
+  if (cam) cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
 
   _stereoCamera = null;
   _stereoActive = false;
