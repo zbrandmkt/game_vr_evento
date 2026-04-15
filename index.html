@@ -493,6 +493,19 @@
   <!-- MINE ENTRANCE HINT (pulsing dot to guide player) -->
   <div id="mine-hint"></div>
 
+  <!-- INPUT OCULTO: mantido focado para iOS entregar keydown de teclados BT (iCade/Shinecon) -->
+  <input id="bt-focus-trap" readonly tabindex="0"
+    style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
+
+  <!-- DEBUG PANEL: toque 5x no timer para mostrar/esconder -->
+  <div id="ctrl-debug" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.85);color:#FF8B1A;font-size:11px;padding:8px 14px;border-radius:8px;
+    z-index:99999;text-align:center;pointer-events:none;min-width:220px;line-height:1.7;">
+    <div>🎮 <span id="dbg-gp">Gamepad: —</span></div>
+    <div>⌨️ <span id="dbg-key">Key: —</span></div>
+    <div>🕹 <span id="dbg-state">State: —</span></div>
+  </div>
+
   <!-- TOUCH HIT ZONE (Game 2 fallback) -->
   <div id="touch-hit-zone" ontouchstart="handleTouchHit()" onclick="handleTouchHit()"></div>
 
@@ -1058,7 +1071,7 @@ function _gamepadPoll() {
       for (let i = 0; i < gp.buttons.length; i++) {
         const pressed = !!(gp.buttons[i] && gp.buttons[i].pressed);
         cur.push(pressed);
-        if (pressed && !prev[i]) _gamepadAction();
+        if (pressed && !prev[i]) { _dbgUpdate('gp', i); _gamepadAction(); }
       }
       _gamepadPrev[gp.index] = cur;
     }
@@ -1073,23 +1086,69 @@ window.addEventListener('gamepadconnected', _startGamepadPolling);
 // Dá partida mesmo se o gamepad já estiver conectado antes do load
 _startGamepadPolling();
 
-// No iOS, o Shinecon SC-B03 em Modo Jogo (⊙+X) usa protocolo iCade, que envia
-// caracteres de teclado para cada botão (ex: ⊙→'y'/'t', A→'h'/'r', X→'j'/'p').
-// Em Modo Player (⊙+A) envia media keys. Cobrimos tudo via keydown capture.
-let _lastKeyActionAt = 0;
-window.addEventListener('keydown', (e) => {
-  // Ignora se um input/textarea está focado (evita conflito com campo de texto)
+// ===== BLUETOOTH CONTROLLER: iCade + Gamepad API =====
+// iOS só entrega keydown de dispositivos BT quando há um input focado.
+// Mantemos #bt-focus-trap focado e re-focamos após qualquer blur.
+const _btTrap = document.getElementById('bt-focus-trap');
+function _reFocusTrap() {
+  // Não re-foca se um input real (nome/telefone) estiver ativo
   const tag = document.activeElement && document.activeElement.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-  // Ignora modificadores de teclado normal
+  if (tag === 'INPUT' && document.activeElement.id !== 'bt-focus-trap') return;
+  if (tag === 'TEXTAREA') return;
+  try { _btTrap && _btTrap.focus({ preventScroll: true }); } catch(e) {}
+}
+// Foca ao carregar e re-foca sempre que o foco sair
+document.addEventListener('DOMContentLoaded', _reFocusTrap);
+document.addEventListener('click',     _reFocusTrap, true);
+document.addEventListener('touchend',  _reFocusTrap, true);
+document.addEventListener('touchstart',_reFocusTrap, true);
+if (_btTrap) _btTrap.addEventListener('blur', () => setTimeout(_reFocusTrap, 50));
+setTimeout(_reFocusTrap, 500);
+
+// ===== DEBUG PANEL (5 toques no timer) =====
+let _dbgTaps = 0, _dbgTimer = null;
+const _dbgPanel = document.getElementById('ctrl-debug');
+document.getElementById('hud-timer').addEventListener('click', () => {
+  _dbgTaps++;
+  clearTimeout(_dbgTimer);
+  _dbgTimer = setTimeout(() => { _dbgTaps = 0; }, 1500);
+  if (_dbgTaps >= 5) {
+    _dbgTaps = 0;
+    _dbgPanel.style.display = _dbgPanel.style.display === 'none' ? 'block' : 'none';
+  }
+});
+function _dbgUpdate(type, val) {
+  if (!_dbgPanel || _dbgPanel.style.display === 'none') return;
+  const states = [];
+  if (gameActive) states.push('GAME');
+  if (mainMenu && !mainMenu.classList.contains('hidden')) states.push('MENU');
+  if (resultScreen && resultScreen.classList.contains('active')) states.push('RESULT');
+  if (!states.length) states.push('OTHER');
+  document.getElementById('dbg-state').textContent = 'State: ' + states.join('+');
+  if (type === 'key') document.getElementById('dbg-key').textContent   = 'Key: ' + val;
+  if (type === 'gp')  document.getElementById('dbg-gp').textContent    = 'Gamepad: btn' + val;
+}
+
+// Keydown: captura eventos iCade e teclado HID do controle
+let _lastKeyActionAt = 0;
+function _onControllerKey(e) {
+  // Só ignora inputs reais de digitação (não o trap oculto)
+  const active = document.activeElement;
+  if (active && active.id !== 'bt-focus-trap') {
+    const tag = active.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  }
   if (e.altKey || e.ctrlKey || e.metaKey) return;
-  // Debounce 250ms para cobrir keyrepeat e iCade up/down pairs
+  // Debounce 300ms (iCade emite press+release chars rapidamente)
   const now = Date.now();
-  if (now - _lastKeyActionAt < 250) return;
+  if (now - _lastKeyActionAt < 300) return;
   _lastKeyActionAt = now;
+  _dbgUpdate('key', e.key || e.keyCode);
   try { _gamepadAction(); } catch(err) {}
   try { e.preventDefault(); } catch(err) {}
-}, true);
+}
+window.addEventListener('keydown', _onControllerKey, true);
+if (_btTrap) _btTrap.addEventListener('keydown', _onControllerKey);
 
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
