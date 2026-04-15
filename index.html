@@ -467,7 +467,7 @@
         style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
                color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">−</button>
       <span id="vr-scale-label"
-        style="color:rgba(255,255,255,0.4);font-size:11px;min-width:60px;text-align:center;">Tela VR 90%</span>
+        style="color:rgba(255,255,255,0.4);font-size:11px;min-width:60px;text-align:center;">Tela VR 80%</span>
       <button onclick="adjustVrScale(0.05)"
         style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
                color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">+</button>
@@ -2041,7 +2041,7 @@ let _origRender   = null;
 let _stereoSize   = new THREE.Vector2();
 
 // Calibração VR: tamanho da área renderizada (0.6–1.0) e flip de giroscópio
-let _vrScale = 0.9; // padrão 90% — funciona bem para celulares 6"+
+let _vrScale = 0.8; // padrão 80%
 let _gyroFlipEnabled = false;
 
 function toggleGyroFlip() {
