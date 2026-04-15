@@ -381,9 +381,9 @@
     body.vr-mode .result-score       { font-size: 52px !important; }
     body.vr-mode .result-detail      { font-size: 10px !important; margin-bottom: 18px !important; }
     body.vr-mode .result-btn         { font-size: 12px !important; padding: 10px 18px !important; margin: 4px !important; border-radius: 8px !important; }
-    /* crosshair e gaze-ring: mover para o centro do olho esquerdo (left 25%) */
-    body.vr-mode #crosshair          { left: 25% !important; }
-    body.vr-mode #gaze-ring          { left: 25% !important; }
+    /* crosshair e gaze-ring ficam em left:50% (centro do viewport) —
+       no overlay aparece na borda direita do olho esquerdo, no mirror aparece
+       centralizado no olho direito. O cérebro funde as duas posições em VR. */
     body.vr-mode #crosshair svg      { width: 32px !important; height: 32px !important; }
     body.vr-mode #gaze-ring svg      { width: 50px !important; height: 50px !important; }
     /* UI dedicada ao modo VR — fica por cima de tudo */
