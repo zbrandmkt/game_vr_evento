@@ -629,18 +629,18 @@ function pushScoreToPending(gameType, scoreValue, timeUsed) {
 
 // ===== ROCK WORDS — pool de palavras atribuídas aleatoriamente a cada slot =====
 const ROCK_WORDS = [
-  // Fácil — 5 golpes / 100 pts (eram 2 / 100)
-  { word: "Teimosinha",                     hits: 5, pts: 100 },
-  { word: "Averba já",                      hits: 5, pts: 100 },
-  { word: "Disparo no\nWhatsapp",           hits: 5, pts: 100 },
-  { word: "Melhores\ncomissões",            hits: 5, pts: 100 },
-  // Médio — 7 golpes / 200 pts (eram 3 / 200)
-  { word: "Link\nAutocontratação",          hits: 7, pts: 200 },
-  { word: "Consulta\nem lote",              hits: 7, pts: 200 },
-  { word: "Maior range\nde idade",          hits: 7, pts: 200 },
-  // Difícil — 10 golpes / 350 pts (eram 4 / 350)
-  { word: "Vitor.ia\nIA de elegibilidade",  hits: 10, pts: 350 },
-  { word: "CNAEs\nilimitados",              hits: 10, pts: 350 },
+  // Fácil — 3 golpes / 100 pts
+  { word: "Teimosinha",                     hits: 3, pts: 100 },
+  { word: "Averba já",                      hits: 3, pts: 100 },
+  { word: "Disparo no\nWhatsapp",           hits: 3, pts: 100 },
+  { word: "Melhores\ncomissões",            hits: 3, pts: 100 },
+  // Médio — 5 golpes / 200 pts
+  { word: "Link\nAutocontratação",          hits: 5, pts: 200 },
+  { word: "Consulta\nem lote",              hits: 5, pts: 200 },
+  { word: "Maior range\nde idade",          hits: 5, pts: 200 },
+  // Difícil — 7 golpes / 350 pts
+  { word: "Vitor.ia\nIA de elegibilidade",  hits: 7, pts: 350 },
+  { word: "CNAEs\nilimitados",              hits: 7, pts: 350 },
 ];
 
 // ===== GAME STATE =====
@@ -1544,7 +1544,7 @@ function spawnGeode() {
     geoPanels.push({
       el, mesh, centroid,
       word, hasWord,
-      hitsLeft: hasWord ? (word.hits) : 3,
+      hitsLeft: hasWord ? (word.hits) : 2,
       alive: true,
       panelIdx: geoPanels.length
     });
