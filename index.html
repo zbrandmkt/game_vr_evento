@@ -786,21 +786,28 @@ function requestGyroAndEnter() {
     skyEl.setAttribute('rotation', '0 160 0');
   }
 
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+  function _activateLookControls() {
+    try {
+      const cam = document.getElementById('main-camera');
+      cam.setAttribute('look-controls', 'pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true');
+    } catch(e) {}
+  }
+
+  const _hasPermissionAPI = typeof DeviceOrientationEvent !== 'undefined'
+    && typeof DeviceOrientationEvent.requestPermission === 'function';
+
+  if (_hasPermissionAPI) {
+    // iOS 13+ — pede permissão explícita para o giroscópio
     DeviceOrientationEvent.requestPermission()
       .then(response => {
-        if (response === 'granted') {
-          const cam = document.getElementById('main-camera');
-          cam.setAttribute('look-controls', 'pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true');
-          console.log('[Gyro] Permissão concedida.');
-        } else {
-          console.warn('[Gyro] Permissão negada — look-controls pode não funcionar.');
-        }
+        if (response === 'granted') _activateLookControls();
+        else console.warn('[Gyro] Permissão negada.');
       })
-      .catch(err => console.warn('[Gyro] Erro:', err))
+      .catch(err => console.warn('[Gyro] Erro na permissão:', err))
       .finally(showMenu);
   } else {
-    // Android ou desktop — não precisa pedir permissão
+    // Android / desktop — giroscópio disponível sem permissão
+    _activateLookControls();
     showMenu();
   }
 }
