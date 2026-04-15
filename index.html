@@ -363,12 +363,14 @@
     body.vr-mode #splash-btn         { width: 180px !important; font-size: 13px !important; padding: 12px 16px !important; }
     body.vr-mode .menu-logo          { width: 140px !important; margin-bottom: 8px !important; }
     body.vr-mode .menu-subtitle      { font-size: 10px !important; margin-bottom: 20px !important; letter-spacing: 1px !important; }
-    body.vr-mode .menu-btn           { width: 180px !important; font-size: 14px !important; padding: 12px 16px !important; margin: 6px auto !important; border-radius: 10px !important; }
+    body.vr-mode .menu-btn           { width: 160px !important; font-size: 13px !important; padding: 10px 14px !important; margin: 5px auto !important; border-radius: 10px !important; }
     body.vr-mode .menu-footer        { font-size: 9px !important; bottom: 12px !important; }
     body.vr-mode #intro-countdown    { font-size: 64px !important; min-height: 72px !important; }
     body.vr-mode #hud-timer          { font-size: 30px !important; letter-spacing: 2px !important; }
     body.vr-mode #hud-score          { font-size: 16px !important; bottom: 14px !important; letter-spacing: 1px !important; }
     body.vr-mode #hud-center-info    { font-size: 14px !important; }
+    /* Escala: botões − e + do menu ficam menores em VR */
+    body.vr-mode #vr-scale-label     { font-size: 9px !important; min-width: 48px !important; }
     body.vr-mode #narration-sub      { font-size: 14px !important; max-width: 88% !important; line-height: 1.4 !important; }
     body.vr-mode #hit-feedback       { font-size: 28px !important; }
     body.vr-mode .result-title       { font-size: 14px !important; }
@@ -384,39 +386,52 @@
       z-index: 99999; pointer-events: none;
     }
     body.vr-mode #vr-ui { display: block; }
-    /* Botão sair VR — visível em ambos os olhos (centro-cima) */
-    #vr-exit-btn {
-      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.6); border: 2px solid rgba(255,139,26,0.8);
-      border-radius: 20px; color: #FF8B1A; font-family: 'Poppins', sans-serif;
-      font-size: 13px; font-weight: 700; padding: 7px 18px;
-      pointer-events: auto; cursor: pointer; letter-spacing: 1px;
-      z-index: 100001; /* acima do vr-hit-zone */
+
+    /* === BOTÕES VR SAÍDA + REINICIAR — bolinhas pequenas, topo direito === */
+    #vr-controls {
+      position: absolute; top: 10px; right: 14px;
+      display: flex; gap: 8px; z-index: 100001; pointer-events: auto;
     }
+    #vr-exit-btn, #vr-restart-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid rgba(255,139,26,0.7);
+      background: rgba(0,0,0,0.65);
+      color: #FF8B1A; font-size: 16px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; pointer-events: auto;
+      text-shadow: 0 0 6px rgba(255,139,26,0.6);
+    }
+    #vr-restart-btn { font-size: 18px; }
+
     /* Área de toque invisível — cobre tela toda em VR para registrar golpes */
     #vr-hit-zone {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; background: transparent;
     }
-    /* Só recebe toques quando o jogo está ativo (fase 2) — liberando cliques
-       em botões de menu/splash/resultado nas outras telas */
+    /* Só recebe toques quando o jogo está ativo — libera cliques em botões nas outras telas */
     body.vr-mode.game-active #vr-hit-zone { pointer-events: auto; }
-    /* HUD mínimo VR — placar e tempo flutuando no centro */
+
+    /* === VR HUD — reveladas + score, topo central === */
     #vr-hud {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -85px);
+      position: absolute; top: 10px; left: 50%;
+      transform: translateX(-50%);
       text-align: center; pointer-events: none;
-      display: none;
+      display: none; line-height: 1.3;
     }
     body.vr-mode.game-active #vr-hud { display: block; }
+    #vr-hud-revealed {
+      font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600;
+      color: #FFB800; text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    }
     #vr-hud-score {
-      font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 900;
-      color: #FF8B1A; text-shadow: 0 0 12px rgba(255,139,26,0.8), 0 2px 8px rgba(0,0,0,1);
+      font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
+      color: rgba(255,139,26,0.85); text-shadow: 0 1px 6px rgba(0,0,0,0.9);
     }
-    #vr-hud-timer {
-      font-family: 'DSEG7 Classic', monospace; font-size: 18px; color: #fff;
-      text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,1);
-    }
+
+    /* Em VR, esconde timer e score do HUD normal (evita duplicata) */
+    body.vr-mode #hud-timer    { display: none !important; }
+    body.vr-mode #hud-score    { display: none !important; }
+    body.vr-mode #hud-center-info { display: none !important; }
   </style>
 </head>
 <body>
@@ -444,22 +459,16 @@
 
     <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
 
-    <!-- Controles de calibração VR (giroscópio e tamanho de tela) -->
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
-      <button id="vr-orient-btn" class="menu-btn secondary"
-        onclick="cycleVrOrient()"
-        style="font-size:11px;padding:8px 12px;">🔄 Eixo +90°</button>
-      <button id="gyro-flip-btn" class="menu-btn secondary"
-        onclick="toggleGyroFlip()"
-        style="font-size:11px;padding:8px 12px;">↔ Giroscópio: Normal</button>
-      <button class="menu-btn secondary"
-        onclick="adjustVrScale(-0.05)"
-        style="font-size:14px;padding:8px 14px;width:44px;">−</button>
+    <!-- Controles de tamanho de tela VR (discretos) -->
+    <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:8px;">
+      <button onclick="adjustVrScale(-0.05)"
+        style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
+               color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">−</button>
       <span id="vr-scale-label"
-        style="color:#FF8B1A;font-size:12px;line-height:2.6;white-space:nowrap;">Tela VR 90%</span>
-      <button class="menu-btn secondary"
-        onclick="adjustVrScale(0.05)"
-        style="font-size:14px;padding:8px 14px;width:44px;">+</button>
+        style="color:rgba(255,255,255,0.4);font-size:11px;min-width:60px;text-align:center;">Tela VR 90%</span>
+      <button onclick="adjustVrScale(0.05)"
+        style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
+               color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">+</button>
     </div>
 
     <div class="menu-footer">
@@ -570,12 +579,22 @@
 <div id="vr-ui">
   <!-- Hit-zone PRIMEIRO (fica por baixo) — recebe toques para golpes -->
   <div id="vr-hit-zone" ontouchstart="if(gameActive) handleTouchHit()" onclick="if(gameActive) handleTouchHit()"></div>
-  <!-- HUD e botão saem POR CIMA do hit-zone via z-index -->
+
+  <!-- HUD mínimo: reveladas + score, topo central -->
   <div id="vr-hud">
+    <div id="vr-hud-revealed">0 reveladas</div>
     <div id="vr-hud-score">0 pts</div>
-    <div id="vr-hud-timer">00:40</div>
   </div>
-  <button id="vr-exit-btn" onclick="exitStereoVR()" ontouchstart="event.stopPropagation();exitStereoVR()">✕ Sair VR</button>
+
+  <!-- Bolinhas de controle: sair + reiniciar, topo direito -->
+  <div id="vr-controls">
+    <button id="vr-restart-btn" title="Reiniciar"
+      onclick="event.stopPropagation();vrRestart()"
+      ontouchstart="event.stopPropagation();vrRestart()">↺</button>
+    <button id="vr-exit-btn" title="Sair VR"
+      onclick="event.stopPropagation();exitStereoVR()"
+      ontouchstart="event.stopPropagation();exitStereoVR()">✕</button>
+  </div>
 </div>
 
 <!-- ===== A-FRAME SCENE ===== -->
@@ -2244,9 +2263,16 @@ function exitStereoVR() {
 function _vrUpdateHUD() {
   if (!_stereoActive) return;
   const s = document.getElementById('vr-hud-score');
-  const t = document.getElementById('vr-hud-timer');
+  const r = document.getElementById('vr-hud-revealed');
   if (s) s.textContent = score + ' pts';
-  if (t) t.textContent = String(Math.floor(timeRemaining / 60)).padStart(2,'0') + ':' + String(timeRemaining % 60).padStart(2,'0');
+  if (r) r.textContent = (typeof geoWordsRevealed !== 'undefined' ? geoWordsRevealed : 0) + ' reveladas';
+}
+
+// Reinicia o jogo sem sair do modo VR
+function vrRestart() {
+  stopGame();
+  hideAllScreens();
+  mainMenu.classList.remove('hidden');
 }
 
 // ===== UTILITIES =====
