@@ -366,13 +366,14 @@
     body.vr-mode .menu-btn           { width: 160px !important; font-size: 13px !important; padding: 10px 14px !important; margin: 5px auto !important; border-radius: 10px !important; }
     body.vr-mode .menu-footer        { font-size: 9px !important; bottom: 12px !important; }
     body.vr-mode #intro-countdown    { font-size: 64px !important; min-height: 72px !important; }
-    /* HUD em VR: left:50% alinhado com a mira (mesmo eixo central de cada olho via mirror) */
+    /* HUD em VR: empurrado para dentro da área visível (80% = 10% borda em cima/baixo) */
+    body.vr-mode #game-hud           { padding-top: 13vh !important; }
     body.vr-mode #hud-timer          { font-size: 26px !important; letter-spacing: 2px !important; margin-bottom: 2px !important; }
     body.vr-mode #hud-center-info    { font-size: 12px !important; }
-    body.vr-mode #hud-score          { font-size: 14px !important; bottom: 12px !important; letter-spacing: 1px !important; }
+    body.vr-mode #hud-score          { font-size: 14px !important; bottom: 13vh !important; letter-spacing: 1px !important; }
     /* Escala: botões − e + do menu ficam menores em VR */
     body.vr-mode #vr-scale-label     { font-size: 9px !important; min-width: 48px !important; }
-    body.vr-mode #narration-sub      { font-size: 14px !important; max-width: 44% !important; line-height: 1.4 !important; }
+    body.vr-mode #narration-sub      { font-size: 14px !important; max-width: 80% !important; line-height: 1.4 !important; }
     body.vr-mode #hit-feedback       { font-size: 28px !important; }
     body.vr-mode .result-title       { font-size: 14px !important; }
     body.vr-mode .result-score       { font-size: 52px !important; }
@@ -393,7 +394,7 @@
 
     /* === BOTÕES VR SAÍDA + REINICIAR — bolinhas pequenas, topo direito === */
     #vr-controls {
-      position: absolute; top: 10px; right: 14px;
+      position: absolute; top: 12vh; right: 14px;
       display: flex; gap: 8px; z-index: 100001; pointer-events: auto;
     }
     #vr-exit-btn, #vr-restart-btn {
