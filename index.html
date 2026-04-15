@@ -2102,14 +2102,19 @@ function adjustVrScale(delta) {
 }
 
 // Escala o overlay HTML junto com o canvas 3D.
-// zoom: encolhe todo o conteúdo (botões, texto, HUD).
-// SEM marginLeft — o deslocamento estava empurrando todos os elementos para a direita.
+// O overlay cobre apenas a metade ESQUERDA (olho esquerdo), com largura 50%.
+// O mirror (_vrMirror) cobre a metade DIREITA (olho direito), também 50%.
+// Assim, left:50% dentro de cada container = centro de cada olho.
+// marginLeft desloca o overlay para alinhar com o viewport 3D (que tem bordas pretas).
 function _applyVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
   const s = _vrScale;
+  const offsetPct = ((1 - s) / 2 * 100); // 10% para scale 0.8
   overlay.style.zoom = s;
-  overlay.style.marginLeft = '';
+  overlay.style.width = '50%';
+  overlay.style.overflow = 'hidden';
+  overlay.style.marginLeft = offsetPct + '%';
   // Sincroniza zoom do espelho (olho direito) para manter os dois olhos iguais
   if (_vrMirror) _vrMirror.style.zoom = s;
 }
@@ -2118,6 +2123,8 @@ function _resetVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
   overlay.style.zoom = '';
+  overlay.style.width = '';
+  overlay.style.overflow = '';
   overlay.style.marginLeft = '';
 }
 
