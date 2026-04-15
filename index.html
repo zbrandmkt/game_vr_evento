@@ -2103,16 +2103,13 @@ function adjustVrScale(delta) {
 
 // Escala o overlay HTML junto com o canvas 3D.
 // zoom: encolhe todo o conteúdo (botões, texto, HUD).
-// margin-left: desloca para alinhar com a margem do canvas.
+// SEM marginLeft — o deslocamento estava empurrando todos os elementos para a direita.
 function _applyVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
   const s = _vrScale;
   overlay.style.zoom = s;
-  // Desloca para compensar a margem gerada pelo scale no canvas
-  // Cada olho começa em ox = (1 - _vrScale)/2 * 100% da tela
-  const shift = ((1 - s) / 2 * 100).toFixed(2) + '%';
-  overlay.style.marginLeft = shift;
+  overlay.style.marginLeft = '';
   // Sincroniza zoom do espelho (olho direito) para manter os dois olhos iguais
   if (_vrMirror) _vrMirror.style.zoom = s;
 }
