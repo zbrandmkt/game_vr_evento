@@ -2277,6 +2277,9 @@ function _vrUpdateHUD() {
 // Reinicia o jogo sem sair do modo VR
 function vrRestart() {
   stopGame();
+  _stopAudio(_aud1);
+  _stopAudio(_aud2);
+  _stopAudio(_aud3);
   hideAllScreens();
   mainMenu.classList.remove('hidden');
 }
