@@ -453,7 +453,7 @@
         onclick="adjustVrScale(-0.05)"
         style="font-size:14px;padding:8px 14px;width:44px;">−</button>
       <span id="vr-scale-label"
-        style="color:#FF8B1A;font-size:12px;line-height:2.6;white-space:nowrap;">Tela VR 100%</span>
+        style="color:#FF8B1A;font-size:12px;line-height:2.6;white-space:nowrap;">Tela VR 90%</span>
       <button class="menu-btn secondary"
         onclick="adjustVrScale(0.05)"
         style="font-size:14px;padding:8px 14px;width:44px;">+</button>
@@ -1942,7 +1942,7 @@ let _origRender   = null;
 let _stereoSize   = new THREE.Vector2();
 
 // Calibração VR: tamanho da área renderizada (0.6–1.0) e flip de giroscópio
-let _vrScale = 1.0;
+let _vrScale = 0.9; // padrão 90% — funciona bem para celulares 6"+
 let _gyroFlipEnabled = false;
 
 function toggleGyroFlip() {
@@ -1957,6 +1957,29 @@ function adjustVrScale(delta) {
   _vrScale = Math.round(Math.min(1.0, Math.max(0.6, _vrScale + delta)) * 100) / 100;
   const lbl = document.getElementById('vr-scale-label');
   if (lbl) lbl.textContent = 'Tela VR ' + Math.round(_vrScale * 100) + '%';
+  // Se já estiver em VR, aplica imediatamente
+  if (_stereoActive) _applyVrOverlayScale();
+}
+
+// Escala o overlay HTML junto com o canvas 3D.
+// zoom: encolhe todo o conteúdo (botões, texto, HUD).
+// margin-left: desloca para alinhar com a margem do canvas.
+function _applyVrOverlayScale() {
+  const overlay = document.getElementById('overlay-layer');
+  if (!overlay) return;
+  const s = _vrScale;
+  overlay.style.zoom = s;
+  // Desloca para compensar a margem gerada pelo scale no canvas
+  // Cada olho começa em ox = (1 - _vrScale)/2 * 100% da tela
+  const shift = ((1 - s) / 2 * 100).toFixed(2) + '%';
+  overlay.style.marginLeft = shift;
+}
+
+function _resetVrOverlayScale() {
+  const overlay = document.getElementById('overlay-layer');
+  if (!overlay) return;
+  overlay.style.zoom = '';
+  overlay.style.marginLeft = '';
 }
 
 // ===== VR MIRROR — espelha overlay para o olho direito =====
@@ -2029,6 +2052,9 @@ function enterStereoVR() {
   // Cria espelho do overlay para o olho direito
   _createVRMirror();
 
+  // Escala overlay junto com o canvas
+  _applyVrOverlayScale();
+
   // StereoCamera — 64mm separação ocular padrão Cardboard
   _stereoCamera = new THREE.StereoCamera();
   _stereoCamera.eyeSep = 0.064;
@@ -2080,6 +2106,7 @@ function exitStereoVR() {
   if (_origRender) { renderer.render = _origRender; _origRender = null; }
 
   _destroyVRMirror();
+  _resetVrOverlayScale();
 
   _stereoCamera = null;
   _stereoActive = false;
