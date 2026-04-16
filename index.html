@@ -2159,7 +2159,7 @@ function enterStereoVR() {
   const renderer = scene.renderer;
 
   // Fullscreen + landscape
-  try { screen.orientation.lock('landscape-primary').catch(() => {}); } catch(e) {}
+  try { screen.orientation.lock('landscape').catch(() => {}); } catch(e) {}
   try {
     const el = document.documentElement;
     (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen)?.call(el);
