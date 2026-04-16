@@ -2081,16 +2081,22 @@ function _dbgGyro(a, b, g) {
   }
 }
 
-// Escala VR fixa em 85% — valores hardcoded para Shinecon SC-G04E.
-// zoom:0.85 encolhe texto/botões para caber na metade da tela.
-// marginLeft calibrado empiricamente para Shinecon SC-G04E a 85%:
-// 7.5% → levemente esquerda, 10% → levemente direita. 8.5% = ponto ideal.
+// Escala VR fixa em 85% — Shinecon SC-G04E.
+// zoom:0.85 encolhe conteúdo a partir do canto superior esquerdo de cada container.
+// Para compensar simetricamente, AMBOS recebem o mesmo offset de 3.75%:
+//   offset = (1 - 0.85) × 25 = 3.75%
+// Overlay: marginLeft:3.75%  → centro em 3.75 + 25×0.85 = 3.75 + 21.25 = 25% da tela
+// Mirror:  left:53.75%       → centro em 53.75 + 21.25  = 75% da tela
+// Resultado: ambos perfeitamente simétricos a 25% das bordas.
 function _applyVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
   overlay.style.zoom = '0.85';
-  overlay.style.marginLeft = '8.5%';
-  if (_vrMirror) _vrMirror.style.zoom = '0.85';
+  overlay.style.marginLeft = '3.75%';
+  if (_vrMirror) {
+    _vrMirror.style.zoom = '0.85';
+    _vrMirror.style.left = '53.75%';
+  }
 }
 
 function _resetVrOverlayScale() {
@@ -2098,6 +2104,7 @@ function _resetVrOverlayScale() {
   if (!overlay) return;
   overlay.style.zoom = '';
   overlay.style.marginLeft = '';
+  if (_vrMirror) _vrMirror.style.left = '50%';
 }
 
 // ===== VR MIRROR — espelha overlay para o olho direito =====
