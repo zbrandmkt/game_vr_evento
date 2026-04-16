@@ -838,6 +838,8 @@ let score = 0;
 let completionTime = null;
 let hitCooldown = false;
 let lastResult = { game: null, score: 0, time: 0 };
+let _gameEnded  = false;   // evita chamadas duplicadas de endGame()
+let _gameStarted = false;  // evita iniciar múltiplas sessões simultâneas
 
 // ===== GEO GAME STATE =====
 let geoPanels = [];
@@ -1006,12 +1008,16 @@ function startGame() {
 }
 
 function _doStartGame() {
+  if (_gameStarted) return;     // evita duplo disparo de clique/toque
+  _gameStarted = true;
   mainMenu.classList.add('hidden');
   vrEnterBtn.style.display = 'flex';
   beginPhase1();
 }
 
 function backToMenu() {
+  _gameStarted = false;
+  _gameEnded   = false;
   stopGame();
   hideAllScreens();
   mainMenu.classList.remove('hidden');
@@ -1139,7 +1145,11 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function beginGame() {
+  // Mata qualquer timer anterior que possa ter ficado órfão
+  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+
   gameActive    = true;
+  _gameEnded    = false;
   score         = 0;
   timeRemaining = 40;
   completionTime = null;
@@ -2002,13 +2012,17 @@ let _resultReady = false;   // bloqueia playAgain() nos primeiros 10s
 let _resultCountdownRAF = null;
 
 function endGame() {
+  if (_gameEnded) return;   // guard: evita chamadas duplicadas (timer órfão, etc.)
+  _gameEnded = true;
+
   stopGame();
   hideAllScreens();
 
   $('result-score-value').textContent = score + ' pts';
   $('result-detail').textContent = `${geoWordsRevealed} barreira${geoWordsRevealed !== 1 ? 's' : ''} quebrada${geoWordsRevealed !== 1 ? 's' : ''}`;
   lastResult = { game: 'geo', score, time: 40 };
-  pushScoreToPending('geo', score, geoWordsRevealed);
+  // Só envia ao Firebase se o jogador fez ao menos 1 ponto (evita lixo de sessões vazias)
+  if (score > 0) pushScoreToPending('geo', score, geoWordsRevealed);
   resultScreen.classList.add('active');
 
   // Oculta botão e inicia contagem regressiva de 10s
@@ -2042,6 +2056,8 @@ function endGame() {
 function playAgain() {
   if (!_resultReady) return;            // ignora se ainda dentro dos 10s de cooldown
   if (_resultCountdownRAF) { clearTimeout(_resultCountdownRAF); _resultCountdownRAF = null; }
+  _gameEnded   = false;
+  _gameStarted = true;  // já está em jogo — não requer nova passagem por _doStartGame
   hideAllScreens();
   beginPhase1();
 }

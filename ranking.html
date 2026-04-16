@@ -590,6 +590,7 @@
   <div class="pbar-dot"></div>
   <span class="pbar-text" style="flex:1;">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
   <button onclick="openQueueDrawer()" style="background:rgba(255,255,255,0.18);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Ver pontuações pendentes">📋 Ver Fila</button>
+  <button onclick="exportRankingCSV()" style="background:rgba(255,255,255,0.18);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Exportar ranking para planilha">⬇️ Exportar CSV</button>
   <button onclick="clearPending()" style="background:rgba(0,0,0,0.2);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Limpar fila de pendentes acumulados">Limpar fila</button>
 </div>
 
@@ -1184,6 +1185,10 @@ window._qdSave = async function(key, scoreVal) {
   if (!name) { if (nameEl) { nameEl.style.borderColor='#DC2626'; nameEl.focus(); } return; }
   if (nameEl) nameEl.style.borderColor = '';
 
+  // Desabilita o botão para evitar duplo clique
+  const btn = document.querySelector(`button[onclick="_qdSave('${key}',${scoreVal})"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+
   try {
     await push(ref(db, 'rankings/clt'), { name, wa: waEl ? waEl.value.trim() : '', score: scoreVal, ts: Date.now() });
     await remove(ref(db, 'pending/' + key));
@@ -1194,7 +1199,55 @@ window._qdSave = async function(key, scoreVal) {
     const card = document.getElementById('qd-' + key);
     if (card) card.remove();
     _queueDrawerCheckEmpty();
-  } catch(e) { alert('Erro ao salvar: ' + e.message); }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar no Ranking'; }
+    alert('Erro ao salvar: ' + e.message);
+  }
+};
+
+// ===== EXPORTAR CSV =====
+window.exportRankingCSV = async function() {
+  try {
+    const snap = await get(ref(db, 'rankings/clt'));
+    if (!snap.exists()) { alert('Nenhum participante no ranking ainda.'); return; }
+
+    const rows = [];
+    snap.forEach(child => {
+      const v = child.val();
+      rows.push({
+        name:  v.name  || '',
+        wa:    v.wa    || '',
+        score: v.score || 0,
+        ts:    v.ts    || 0
+      });
+    });
+
+    // Ordena: maior pontuação primeiro
+    rows.sort((a, b) => b.score - a.score);
+
+    // Monta CSV com BOM UTF-8 para Excel abrir corretamente com acentos
+    const BOM = '\uFEFF';
+    let csv = BOM + 'Posição,Nome,WhatsApp,Pontuação,Data/Hora\n';
+    rows.forEach((r, i) => {
+      const data = r.ts ? new Date(r.ts).toLocaleString('pt-BR') : '';
+      // Envolve campos com aspas para evitar problemas com vírgulas
+      const nome = '"' + r.name.replace(/"/g, '""') + '"';
+      const wa   = '"' + r.wa.replace(/"/g, '""') + '"';
+      csv += `${i + 1},${nome},${wa},${r.score},"${data}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `presenca_corban360_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Erro ao exportar: ' + e.message);
+  }
 };
 
 // ===== EDITAR MODAL =====
