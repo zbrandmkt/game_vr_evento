@@ -682,6 +682,12 @@ AFRAME.registerComponent('vr-gyro-custom', {
     this._zee = new THREE.Vector3(0, 0, 1);
     this._a = 0; this._b = 0; this._g = 0;
     this._ok = false;
+    // Offset inicial do jogador: roda o mundo no eixo Y para que o player comece
+    // olhando PLAYER_START_ANGLE° à direita (negativo em THREE.js = sentido horário)
+    this._startOff = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      -(typeof PLAYER_START_ANGLE !== 'undefined' ? PLAYER_START_ANGLE : 0) * Math.PI / 180
+    );
 
     this._onOrient = (ev) => {
       if (ev.alpha == null) return;
@@ -723,6 +729,9 @@ AFRAME.registerComponent('vr-gyro-custom', {
       this._e2.y = -this._e2.y;
       this._q.setFromEuler(this._e2);
     }
+
+    // Aplica offset de ponto inicial (30° à direita) em espaço de mundo
+    this._q.premultiply(this._startOff);
 
     // Sobrescreve a câmera (roda por último, após look-controls e gyro-flip)
     this.el.object3D.quaternion.copy(this._q);
@@ -784,10 +793,12 @@ let gazeRingAnimFrame = null;
 
 // Angle of mine entrance from player starting direction (degrees, 0=forward, 90=right, -90=left)
 // Calibrated by user: sky Y=160, cave entrance at 220°
-const MINE_ENTRANCE_ANGLE = 30;
+const MINE_ENTRANCE_ANGLE  = 190;
 const MINE_ENTRANCE_HEIGHT = 1.5;
 const MINE_ENTRANCE_DIST   = 5.0;
 const MINE_GAZE_DWELL_MS   = 2000; // 2 seconds
+// Ângulo inicial do jogador no mundo 3D (°, sentido horário, 0=frente, 90=direita)
+const PLAYER_START_ANGLE   = 30;
 
 // ===== DOM REFS =====
 const $ = id => document.getElementById(id);
@@ -983,7 +994,8 @@ function resetCameraToCenter() {
   const lc = cam.components['look-controls'];
   if (lc) {
     lc.pitchObject.rotation.x = 0;
-    lc.yawObject.rotation.y   = 0;
+    // Negativo em THREE.js = sentido horário = direita
+    lc.yawObject.rotation.y   = -(PLAYER_START_ANGLE * Math.PI / 180);
   }
   cam.object3D.rotation.set(0, 0, 0);
 }
