@@ -2059,11 +2059,9 @@ function cycleVrOrient() {
 function _applyVrOrientMode() {
   const cam = document.getElementById('main-camera');
   if (!cam || !cam.components) return;
-  // Forçamos landscape-secondary (topo→direita), então orientDeg = -90
-  // Em modo Auto: ativa vr-gyro-custom com -90 para corrigir o eixo
-  // (look-controls padrão assume landscape-primary=90 e fica invertido)
   if (_vrOrientMode === 0) {
-    cam.setAttribute('vr-gyro-custom', 'active: true; orientDeg: -90');
+    // Modo Auto: desativa componente custom, deixa look-controls agir
+    cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
   } else {
     const deg = _VR_ORIENT_DEGREES[_vrOrientMode];
     cam.setAttribute('vr-gyro-custom', 'active: true; orientDeg: ' + deg);
@@ -2161,8 +2159,7 @@ function enterStereoVR() {
   const renderer = scene.renderer;
 
   // Fullscreen + landscape
-  // landscape-secondary = topo do celular para a DIREITA (cabo áudio/USB à esquerda)
-  try { screen.orientation.lock('landscape-secondary').catch(() => {}); } catch(e) {}
+  try { screen.orientation.lock('landscape-primary').catch(() => {}); } catch(e) {}
   try {
     const el = document.documentElement;
     (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen)?.call(el);
@@ -2176,12 +2173,7 @@ function enterStereoVR() {
   // Escala overlay junto com o canvas
   _applyVrOverlayScale();
 
-  // Desabilita look-controls device orientation para evitar conflito
-  // (look-controls assume landscape-primary, gera inversão em landscape-secondary)
-  const cam = document.getElementById('main-camera');
-  if (cam) cam.setAttribute('look-controls', 'magicWindowTrackingEnabled: false');
-
-  // Ativa componente de giroscópio customizado (corrige eixo landscape-secondary)
+  // Ativa componente de giroscópio customizado (corrige eixo landscape)
   _applyVrOrientMode();
 
   // StereoCamera — 64mm separação ocular padrão Cardboard
@@ -2237,12 +2229,9 @@ function exitStereoVR() {
   _destroyVRMirror();
   _resetVrOverlayScale();
 
-  // Desativa giroscópio customizado e reativa look-controls normal
+  // Desativa giroscópio customizado ao sair do modo VR
   const cam = document.getElementById('main-camera');
-  if (cam) {
-    cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
-    cam.setAttribute('look-controls', 'magicWindowTrackingEnabled: true');
-  }
+  if (cam) cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
 
   _stereoCamera = null;
   _stereoActive = false;
