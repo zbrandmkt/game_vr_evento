@@ -593,19 +593,19 @@
   <button onclick="clearPending()" style="background:rgba(0,0,0,0.2);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Limpar fila de pendentes acumulados">Limpar fila</button>
 </div>
 
-<!-- Queue Drawer Modal -->
-<div id="queue-drawer" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,0.6);backdrop-filter:blur(4px);z-index:600;align-items:flex-end;justify-content:center;">
-  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:80vh;overflow-y:auto;padding:28px 24px 32px;box-shadow:0 -16px 60px rgba(0,0,0,0.2);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div>
-        <div style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:700;color:#1A1A18;">Fila de Pontuações</div>
-        <div style="font-size:12px;color:#6B6B63;margin-top:2px;">Clique em Registrar para associar um nome</div>
-      </div>
-      <button onclick="closeQueueDrawer()" style="background:#F5F5F2;border:none;border-radius:50%;width:34px;height:34px;font-size:18px;cursor:pointer;color:#6B6B63;display:flex;align-items:center;justify-content:center;">✕</button>
+<!-- Queue Full-Screen Modal -->
+<div id="queue-drawer" style="display:none;position:fixed;inset:0;background:#FAFAF8;z-index:600;flex-direction:column;">
+  <!-- Header fixo -->
+  <div style="background:#fff;border-bottom:1px solid #E8E8E0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:1;">
+    <div>
+      <div style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:800;color:#1A1A18;">📋 Fila Pendente</div>
+      <div id="queue-count-label" style="font-size:12px;color:#6B6B63;margin-top:2px;">Carregando...</div>
     </div>
-    <div id="queue-drawer-list">
-      <div style="text-align:center;padding:24px;color:#B0AFA8;font-size:14px;">Carregando...</div>
-    </div>
+    <button onclick="closeQueueDrawer()" style="background:#F5F5F2;border:1px solid #E8E8E0;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#6B6B63;">✕ Fechar</button>
+  </div>
+  <!-- Lista com scroll -->
+  <div id="queue-drawer-list" style="flex:1;overflow-y:auto;padding:16px 20px 32px;">
+    <div style="text-align:center;padding:40px;color:#B0AFA8;font-size:14px;">Carregando...</div>
   </div>
 </div>
 
@@ -1066,29 +1066,48 @@ document.addEventListener('click', () => {
 window.openQueueDrawer = async function() {
   const drawer = document.getElementById('queue-drawer');
   const list   = document.getElementById('queue-drawer-list');
+  const countL = document.getElementById('queue-count-label');
   drawer.style.display = 'flex';
-  list.innerHTML = '<div style="text-align:center;padding:24px;color:#B0AFA8;font-size:14px;">Buscando no Firebase...</div>';
+  list.innerHTML  = '<div style="text-align:center;padding:40px;color:#B0AFA8;font-size:14px;">Buscando no Firebase...</div>';
+  countL.textContent = 'Buscando...';
 
   try {
     const snap = await get(ref(db, 'pending'));
 
     if (!snap.exists()) {
-      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia — nenhuma pontuação pendente.</div>';
+      countL.textContent = '0 pendentes';
+      list.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#B0AFA8;font-size:15px;">✅ Fila vazia — nenhuma pontuação pendente.</div>';
       return;
     }
 
     const items = [];
-    snap.forEach(c => items.push({ key: c.key, ...c.val() }));
-    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+    snap.forEach(c => {
+      const v = c.val();
+      items.push({ key: c.key, score: v.score || 0, time: v.time || 0, date: v.date || null });
+    });
+    // Mais recentes primeiro
+    items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    countL.textContent = items.length + ' pontuaç' + (items.length === 1 ? 'ão pendente' : 'ões pendentes');
     _renderQueueDrawer(items);
   } catch(e) {
-    list.innerHTML = `<div style="color:#DC2626;font-size:13px;padding:16px;">Erro: ${e.message}</div>`;
+    countL.textContent = 'Erro';
+    list.innerHTML = `<div style="color:#DC2626;font-size:13px;padding:20px;text-align:center;">Erro ao buscar: ${e.message}</div>`;
   }
 };
 
 window.closeQueueDrawer = function() {
   document.getElementById('queue-drawer').style.display = 'none';
 };
+
+function _queueDrawerCheckEmpty() {
+  const list  = document.getElementById('queue-drawer-list');
+  const countL = document.getElementById('queue-count-label');
+  const remaining = list.querySelectorAll('[id^="qd-"]').length;
+  if (countL) countL.textContent = remaining + ' pontuaç' + (remaining === 1 ? 'ão pendente' : 'ões pendentes');
+  if (!remaining) {
+    list.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#B0AFA8;font-size:15px;">✅ Fila vazia.</div>';
+  }
+}
 
 function _renderQueueDrawer(items) {
   const list = document.getElementById('queue-drawer-list');
@@ -1154,10 +1173,7 @@ window._qdDiscard = async function(key) {
     await remove(ref(db, 'pending/' + key));
     const card = document.getElementById('qd-' + key);
     if (card) card.remove();
-    const list = document.getElementById('queue-drawer-list');
-    if (list && !list.querySelector('[id^="qd-"]')) {
-      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia.</div>';
-    }
+    _queueDrawerCheckEmpty();
   } catch(e) { alert('Erro: ' + e.message); }
 };
 
@@ -1177,10 +1193,7 @@ window._qdSave = async function(key, scoreVal) {
     updateQueueBadge();
     const card = document.getElementById('qd-' + key);
     if (card) card.remove();
-    const list = document.getElementById('queue-drawer-list');
-    if (list && !list.querySelector('[id^="qd-"]')) {
-      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia.</div>';
-    }
+    _queueDrawerCheckEmpty();
   } catch(e) { alert('Erro ao salvar: ' + e.message); }
 };
 
