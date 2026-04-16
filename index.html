@@ -438,20 +438,20 @@
 <body>
 
 <!-- ===== OVERLAY LAYER ===== -->
-<div id="overlay-layer">
-
-  <!-- SPLASH: pede permissão do giroscópio antes de tudo -->
-  <div id="splash-screen">
-    <img src="assets/logo-branco.png" alt="Presenca" style="width:200px;height:auto;margin-bottom:28px;filter:drop-shadow(0 0 24px rgba(255,139,26,0.5));">
-    <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:8px;letter-spacing:1px;">Workshop Corban360</div>
-    <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:48px;">16 e 17 de Abril, 2026</div>
-    <button id="splash-btn" class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;">
-      🎮 Toque para Jogar
-    </button>
-    <div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.3);max-width:240px;text-align:center;line-height:1.6;">
-      Será solicitada permissão para o sensor de movimento do dispositivo
-    </div>
+<!-- SPLASH: fora do overlay-layer para cobrir 100% da tela mesmo em VR -->
+<div id="splash-screen">
+  <img src="assets/logo-branco.png" alt="Presenca" style="width:200px;height:auto;margin-bottom:28px;filter:drop-shadow(0 0 24px rgba(255,139,26,0.5));">
+  <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:8px;letter-spacing:1px;">Workshop Corban360</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:48px;">16 e 17 de Abril, 2026</div>
+  <button id="splash-btn" class="menu-btn" onclick="requestGyroAndEnter()" style="width:280px;font-size:18px;">
+    🎮 Toque para Jogar
+  </button>
+  <div style="margin-top:20px;font-size:11px;color:rgba(255,255,255,0.3);max-width:240px;text-align:center;line-height:1.6;">
+    Será solicitada permissão para o sensor de movimento do dispositivo
   </div>
+</div>
+
+<div id="overlay-layer">
 
   <!-- MAIN MENU -->
   <div id="main-menu" class="hidden">
@@ -2059,9 +2059,11 @@ function cycleVrOrient() {
 function _applyVrOrientMode() {
   const cam = document.getElementById('main-camera');
   if (!cam || !cam.components) return;
+  // Forçamos landscape-secondary (topo→direita), então orientDeg = -90
+  // Em modo Auto: ativa vr-gyro-custom com -90 para corrigir o eixo
+  // (look-controls padrão assume landscape-primary=90 e fica invertido)
   if (_vrOrientMode === 0) {
-    // Modo Auto: desativa componente custom, deixa look-controls agir
-    cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
+    cam.setAttribute('vr-gyro-custom', 'active: true; orientDeg: -90');
   } else {
     const deg = _VR_ORIENT_DEGREES[_vrOrientMode];
     cam.setAttribute('vr-gyro-custom', 'active: true; orientDeg: ' + deg);
