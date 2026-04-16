@@ -589,7 +589,24 @@
 <div id="promoter-bar">
   <div class="pbar-dot"></div>
   <span class="pbar-text" style="flex:1;">Modo Promotor ativo &mdash; aguardando próxima pontuação...</span>
+  <button onclick="openQueueDrawer()" style="background:rgba(255,255,255,0.18);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Ver pontuações pendentes">📋 Ver Fila</button>
   <button onclick="clearPending()" style="background:rgba(0,0,0,0.2);border:none;color:white;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;" title="Limpar fila de pendentes acumulados">Limpar fila</button>
+</div>
+
+<!-- Queue Drawer Modal -->
+<div id="queue-drawer" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,0.6);backdrop-filter:blur(4px);z-index:600;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:80vh;overflow-y:auto;padding:28px 24px 32px;box-shadow:0 -16px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:700;color:#1A1A18;">Fila de Pontuações</div>
+        <div style="font-size:12px;color:#6B6B63;margin-top:2px;">Clique em Registrar para associar um nome</div>
+      </div>
+      <button onclick="closeQueueDrawer()" style="background:#F5F5F2;border:none;border-radius:50%;width:34px;height:34px;font-size:18px;cursor:pointer;color:#6B6B63;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <div id="queue-drawer-list">
+      <div style="text-align:center;padding:24px;color:#B0AFA8;font-size:14px;">Carregando...</div>
+    </div>
+  </div>
 </div>
 
 <!-- Login Modal (promoter only) -->
@@ -754,7 +771,7 @@
 <!-- Firebase SDK v12 (modular) -->
 <script type="module">
 import { initializeApp }                              from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded,
+import { getDatabase, ref, push, get, onChildAdded,
          onValue, remove, update, query,
          orderByChild, startAt }                      from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword,
@@ -1044,6 +1061,128 @@ document.getElementById('ranking-list').addEventListener('click', e => {
 document.addEventListener('click', () => {
   if (activeKebab) { activeKebab.classList.remove('open'); activeKebab = null; }
 });
+
+// ===== FILA PENDENTE — DRAWER =====
+window.openQueueDrawer = async function() {
+  const drawer = document.getElementById('queue-drawer');
+  const list   = document.getElementById('queue-drawer-list');
+  drawer.style.display = 'flex';
+  list.innerHTML = '<div style="text-align:center;padding:24px;color:#B0AFA8;font-size:14px;">Buscando no Firebase...</div>';
+
+  try {
+    const snap = await get(ref(db, 'pending'));
+
+    if (!snap.exists()) {
+      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia — nenhuma pontuação pendente.</div>';
+      return;
+    }
+
+    const items = [];
+    snap.forEach(c => items.push({ key: c.key, ...c.val() }));
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+    _renderQueueDrawer(items);
+  } catch(e) {
+    list.innerHTML = `<div style="color:#DC2626;font-size:13px;padding:16px;">Erro: ${e.message}</div>`;
+  }
+};
+
+window.closeQueueDrawer = function() {
+  document.getElementById('queue-drawer').style.display = 'none';
+};
+
+function _renderQueueDrawer(items) {
+  const list = document.getElementById('queue-drawer-list');
+  list.innerHTML = '';
+
+  items.forEach(item => {
+    const d    = item.date ? new Date(item.date) : null;
+    const hora = d ? d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '?';
+    const dia  = d ? d.toLocaleDateString('pt-BR') : '?';
+
+    const card = document.createElement('div');
+    card.id = 'qd-' + item.key;
+    card.style.cssText = 'border:1.5px solid #E8E8E0;border-radius:14px;padding:16px;margin-bottom:10px;';
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-family:\'Nunito\',sans-serif;font-size:28px;font-weight:700;color:#FF8B1A;line-height:1;">${item.score ?? 0}</div>
+          <div style="font-size:11px;color:#B0AFA8;margin-top:2px;">${item.time ?? 0} barreiras &bull; ${dia} ${hora}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="_qdRegister('${item.key}',${item.score ?? 0})"
+            style="background:#FF8B1A;border:none;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">
+            ✓ Registrar
+          </button>
+          <button onclick="_qdDiscard('${item.key}')"
+            style="background:#F5F5F2;border:1px solid #E8E8E0;color:#B0AFA8;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;"
+            title="Descartar">✕</button>
+        </div>
+      </div>
+      <!-- Form inline -->
+      <div id="qdf-${item.key}" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid #F5F5F2;">
+        <input id="qdn-${item.key}" type="text" placeholder="Nome do participante" maxlength="60" autocomplete="off"
+          style="width:100%;padding:11px 14px;border:1.5px solid #E8E8E0;border-radius:10px;font-family:\'IBM Plex Sans\',sans-serif;font-size:14px;color:#1A1A18;margin-bottom:8px;outline:none;box-sizing:border-box;">
+        <input id="qdw-${item.key}" type="tel" placeholder="WhatsApp (opcional)" maxlength="20"
+          style="width:100%;padding:11px 14px;border:1.5px solid #E8E8E0;border-radius:10px;font-family:\'IBM Plex Sans\',sans-serif;font-size:14px;color:#1A1A18;margin-bottom:10px;outline:none;box-sizing:border-box;">
+        <div style="display:flex;gap:8px;">
+          <button onclick="_qdSave('${item.key}',${item.score ?? 0})"
+            style="flex:1;background:#FF8B1A;border:none;color:white;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;">
+            💾 Salvar no Ranking
+          </button>
+          <button onclick="document.getElementById('qdf-${item.key}').style.display='none'"
+            style="background:#F5F5F2;border:1px solid #E8E8E0;color:#6B6B63;border-radius:10px;padding:11px 14px;font-size:13px;cursor:pointer;">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+window._qdRegister = function(key) {
+  const form = document.getElementById('qdf-' + key);
+  if (!form) return;
+  form.style.display = 'block';
+  const inp = document.getElementById('qdn-' + key);
+  if (inp) inp.focus();
+};
+
+window._qdDiscard = async function(key) {
+  if (!confirm('Descartar esta pontuação da fila?')) return;
+  try {
+    await remove(ref(db, 'pending/' + key));
+    const card = document.getElementById('qd-' + key);
+    if (card) card.remove();
+    const list = document.getElementById('queue-drawer-list');
+    if (list && !list.querySelector('[id^="qd-"]')) {
+      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia.</div>';
+    }
+  } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window._qdSave = async function(key, scoreVal) {
+  const nameEl = document.getElementById('qdn-' + key);
+  const waEl   = document.getElementById('qdw-' + key);
+  const name   = nameEl ? nameEl.value.trim() : '';
+  if (!name) { if (nameEl) { nameEl.style.borderColor='#DC2626'; nameEl.focus(); } return; }
+  if (nameEl) nameEl.style.borderColor = '';
+
+  try {
+    await push(ref(db, 'rankings/clt'), { name, wa: waEl ? waEl.value.trim() : '', score: scoreVal, ts: Date.now() });
+    await remove(ref(db, 'pending/' + key));
+    // Remove também da fila interna se existir
+    const idx = queue.findIndex(q => q.key === key);
+    if (idx !== -1) queue.splice(idx, 1);
+    updateQueueBadge();
+    const card = document.getElementById('qd-' + key);
+    if (card) card.remove();
+    const list = document.getElementById('queue-drawer-list');
+    if (list && !list.querySelector('[id^="qd-"]')) {
+      list.innerHTML = '<div style="text-align:center;padding:32px;color:#B0AFA8;font-size:14px;">✅ Fila vazia.</div>';
+    }
+  } catch(e) { alert('Erro ao salvar: ' + e.message); }
+};
 
 // ===== EDITAR MODAL =====
 window.closeEditModal = function() {
