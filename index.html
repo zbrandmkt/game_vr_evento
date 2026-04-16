@@ -2158,8 +2158,8 @@ function enterStereoVR() {
   const scene    = document.querySelector('a-scene');
   const renderer = scene.renderer;
 
-  // Fullscreen + landscape
-  try { screen.orientation.lock('landscape-primary').catch(() => {}); } catch(e) {}
+  // Fullscreen — SEM lock de orientação para não forçar rotação pelo OS
+  // O lock forçado causava o skybox invertido quando o celular estava em landscape-secondary
   try {
     const el = document.documentElement;
     (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen)?.call(el);
