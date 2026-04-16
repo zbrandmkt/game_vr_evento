@@ -2116,10 +2116,9 @@ function _applyVrOverlayScale() {
   overlay.style.width = '50%';
   overlay.style.overflow = 'hidden';
   overlay.style.marginLeft = offsetPct + '%';
-  // Espelho: desloca simetricamente para a direita
+  // Espelho: apenas sincroniza zoom, mantém left:50% original (não deslocar)
   if (_vrMirror) {
     _vrMirror.style.zoom = s;
-    _vrMirror.style.left = (50 + offsetPct) + '%';
   }
 }
 
