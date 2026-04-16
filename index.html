@@ -2176,7 +2176,12 @@ function enterStereoVR() {
   // Escala overlay junto com o canvas
   _applyVrOverlayScale();
 
-  // Ativa componente de giroscópio customizado (corrige eixo landscape)
+  // Desabilita look-controls device orientation para evitar conflito
+  // (look-controls assume landscape-primary, gera inversão em landscape-secondary)
+  const cam = document.getElementById('main-camera');
+  if (cam) cam.setAttribute('look-controls', 'magicWindowTrackingEnabled: false');
+
+  // Ativa componente de giroscópio customizado (corrige eixo landscape-secondary)
   _applyVrOrientMode();
 
   // StereoCamera — 64mm separação ocular padrão Cardboard
@@ -2232,9 +2237,12 @@ function exitStereoVR() {
   _destroyVRMirror();
   _resetVrOverlayScale();
 
-  // Desativa giroscópio customizado ao sair do modo VR
+  // Desativa giroscópio customizado e reativa look-controls normal
   const cam = document.getElementById('main-camera');
-  if (cam) cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
+  if (cam) {
+    cam.setAttribute('vr-gyro-custom', 'active: false; orientDeg: 90');
+    cam.setAttribute('look-controls', 'magicWindowTrackingEnabled: true');
+  }
 
   _stereoCamera = null;
   _stereoActive = false;
