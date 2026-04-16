@@ -371,8 +371,6 @@
     body.vr-mode #hud-timer          { font-size: 26px !important; letter-spacing: 2px !important; margin-bottom: 2px !important; }
     body.vr-mode #hud-center-info    { font-size: 12px !important; }
     body.vr-mode #hud-score          { font-size: 14px !important; bottom: 13vh !important; letter-spacing: 1px !important; }
-    /* Escala: botões − e + do menu ficam menores em VR */
-    body.vr-mode #vr-scale-label     { font-size: 9px !important; min-width: 48px !important; }
     body.vr-mode #narration-sub      { font-size: 14px !important; max-width: 80% !important; line-height: 1.4 !important; }
     body.vr-mode #hit-feedback       { font-size: 28px !important; }
     body.vr-mode .result-title       { font-size: 14px !important; }
@@ -462,17 +460,7 @@
 
     <button class="menu-btn" onclick="startGame()">Iniciar Partida</button>
 
-    <!-- Controles de tamanho de tela VR (discretos) -->
-    <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:8px;">
-      <button onclick="adjustVrScale(-0.05)"
-        style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
-               color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">−</button>
-      <span id="vr-scale-label"
-        style="color:rgba(255,255,255,0.4);font-size:11px;min-width:60px;text-align:center;">Tela VR 80%</span>
-      <button onclick="adjustVrScale(0.05)"
-        style="background:rgba(255,139,26,0.15);border:1px solid rgba(255,139,26,0.4);border-radius:6px;
-               color:#FF8B1A;font-size:13px;padding:4px 10px;cursor:pointer;">+</button>
-    </div>
+    <!-- Escala VR fixada em 85% para Shinecon SC-G04E -->
 
     <div class="menu-footer">
       Workshop Corban360 — 16 e 17 de Abril, 2026
@@ -2042,7 +2030,7 @@ let _origRender   = null;
 let _stereoSize   = new THREE.Vector2();
 
 // Calibração VR: tamanho da área renderizada (0.6–1.0) e flip de giroscópio
-let _vrScale = 0.8; // padrão 80%
+const _vrScale = 0.85; // fixo em 85% — calibrado para Shinecon SC-G04E
 let _gyroFlipEnabled = false;
 
 function toggleGyroFlip() {
@@ -2093,25 +2081,17 @@ function _dbgGyro(a, b, g) {
   }
 }
 
-function adjustVrScale(delta) {
-  _vrScale = Math.round(Math.min(1.0, Math.max(0.6, _vrScale + delta)) * 100) / 100;
-  const lbl = document.getElementById('vr-scale-label');
-  if (lbl) lbl.textContent = 'Tela VR ' + Math.round(_vrScale * 100) + '%';
-  // Se já estiver em VR, aplica imediatamente
-  if (_stereoActive) _applyVrOverlayScale();
-}
-
-// Escala o overlay HTML para VR.
-// zoom:s encolhe texto/botões para caber na metade da tela.
-// marginLeft compensa o deslocamento que o zoom causa em left:50%.
-// Testes empíricos: 10%→direita, 5%→direita, 0%→esquerda.  7% é o ponto ideal.
+// Escala VR fixa em 85% — valores hardcoded para Shinecon SC-G04E.
+// zoom:0.85 encolhe texto/botões para caber na metade da tela.
+// marginLeft:7.5% = (1-0.85)/2*100 = alinha left:50% ao centro exato do viewport 3D.
+// Olho esquerdo: 7.5% + 25vw*0.85 = 28.75vw (centro 3D esquerdo)
+// Olho direito:  50%  + 25vw*0.85 = 71.25vw (centro 3D direito) — simétrico!
 function _applyVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
-  const s = _vrScale;
-  overlay.style.zoom = s;
-  overlay.style.marginLeft = '7%';
-  if (_vrMirror) _vrMirror.style.zoom = s;
+  overlay.style.zoom = '0.85';
+  overlay.style.marginLeft = '7.5%';
+  if (_vrMirror) _vrMirror.style.zoom = '0.85';
 }
 
 function _resetVrOverlayScale() {
