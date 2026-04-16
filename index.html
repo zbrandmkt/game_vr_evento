@@ -2101,34 +2101,18 @@ function adjustVrScale(delta) {
   if (_stereoActive) _applyVrOverlayScale();
 }
 
-// Escala o overlay HTML junto com o canvas 3D.
-// Overlay = metade ESQUERDA (olho esquerdo), Mirror = metade DIREITA.
-// Ambos com width:50% e zoom:s. O offset alinha left:50% ao centro óptico
-// da lente VR (25% / 75% da tela), não ao centro do viewport 3D.
-// Fórmula: offset = (1-s)/4 * 100  →  5% para scale 0.8
+// Posiciona overlay e mirror para cobrirem cada metade da tela.
+// SEM zoom nos containers — zoom deslocava posições de forma imprevisível.
+// Overlay: width:50% (CSS) + transform:translate(0,0) (CSS) faz left:50% = 25vw = centro lente esquerda.
+// Mirror:  left:50%, width:50% + transform:translate(0,0) faz left:50% = 75vw = centro lente direita.
+// Tamanhos de texto/botões são ajustados via CSS (body.vr-mode rules), não via zoom.
 function _applyVrOverlayScale() {
-  const overlay = document.getElementById('overlay-layer');
-  if (!overlay) return;
-  const s = _vrScale;
-  // Offset para alinhar ao centro da lente (25%/75%), não ao viewport 3D (30%/70%)
-  const offsetPct = ((1 - s) / 4 * 100); // 5% para scale 0.8
-  overlay.style.zoom = s;
-  overlay.style.width = '50%';
-  overlay.style.overflow = 'hidden';
-  overlay.style.marginLeft = offsetPct + '%';
-  // Espelho: apenas sincroniza zoom, mantém left:50% original (não deslocar)
-  if (_vrMirror) {
-    _vrMirror.style.zoom = s;
-  }
+  // Nada a fazer no overlay — o CSS body.vr-mode já cuida de width:50% etc.
+  // Apenas sincroniza mirror sem zoom
 }
 
 function _resetVrOverlayScale() {
-  const overlay = document.getElementById('overlay-layer');
-  if (!overlay) return;
-  overlay.style.zoom = '';
-  overlay.style.width = '';
-  overlay.style.overflow = '';
-  overlay.style.marginLeft = '';
+  // Nada a resetar — tudo via CSS classes
 }
 
 // ===== VR MIRROR — espelha overlay para o olho direito =====
@@ -2148,8 +2132,7 @@ function _createVRMirror() {
   _vrMirror.setAttribute('style', [
     'position:fixed', 'top:0', 'left:50%', 'width:50%', 'height:100%',
     'z-index:9999', 'pointer-events:none', 'overflow:hidden',
-    'transform:translate(0,0)',
-    'zoom:' + _vrScale
+    'transform:translate(0,0)'
   ].join(';'));
 
   // Insere antes do #vr-ui para ficar sob os controles VR
