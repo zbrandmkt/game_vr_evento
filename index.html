@@ -439,7 +439,7 @@
 
 <!-- ===== OVERLAY LAYER ===== -->
 <!-- SPLASH: fora do overlay-layer para cobrir 100% da tela mesmo em VR -->
-<div id="splash-screen">
+<div id="splash-screen" style="pointer-events: auto;">
   <img src="assets/logo-branco.png" alt="Presenca" style="width:200px;height:auto;margin-bottom:28px;filter:drop-shadow(0 0 24px rgba(255,139,26,0.5));">
   <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:8px;letter-spacing:1px;">Workshop Corban360</div>
   <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:48px;">16 e 17 de Abril, 2026</div>
@@ -1295,6 +1295,20 @@ function _onControllerKey(e) {
 window.addEventListener('keydown', _onControllerKey, true);
 if (_btTrap) _btTrap.addEventListener('keydown', _onControllerKey);
 
+// ===== VR TAP-TO-ACTION =====
+// Em modo VR, taps fora de botões disparam a ação contextual (iniciar/golpe/repetir).
+// Resolve o problema de tocar na metade direita do ecrã (espelho com pointer-events:none).
+let _lastVrTapAt = 0;
+document.addEventListener('touchend', function(e) {
+  if (!_stereoActive) return;                             // só em modo VR
+  if (e.target.closest && e.target.closest('button')) return; // botão real → deixa o onclick agir
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const now = Date.now();
+  if (now - _lastVrTapAt < 400) return;                  // debounce
+  _lastVrTapAt = now;
+  try { _gamepadAction(); } catch(err) {}
+}, false);
+
 function handleTouchHit() {
   if (!gameActive || hitCooldown) return;
   const target = geoGazeTarget;
@@ -2045,7 +2059,7 @@ function toggleGyroFlip() {
 // Cicla entre: Auto (look-controls padrão) → +90° → -90°
 // +90° = landscape-primary (topo do celular aponta para a direita no óculos)
 // -90° = landscape-secondary (topo do celular aponta para a esquerda no óculos)
-let _vrOrientMode = 1; // começa em +90° (mais comum para Cardboard/Shinecon)
+let _vrOrientMode = 2; // -90° = landscape-secondary (cabo de áudio à direita, Shinecon SC-G04E)
 const _VR_ORIENT_LABELS  = ['Auto (padrão)', 'Eixo +90°', 'Eixo −90°'];
 const _VR_ORIENT_DEGREES = [null, 90, -90];
 
