@@ -2101,18 +2101,24 @@ function adjustVrScale(delta) {
   if (_stereoActive) _applyVrOverlayScale();
 }
 
-// Posiciona overlay e mirror para cobrirem cada metade da tela.
-// SEM zoom nos containers — zoom deslocava posições de forma imprevisível.
-// Overlay: width:50% (CSS) + transform:translate(0,0) (CSS) faz left:50% = 25vw = centro lente esquerda.
-// Mirror:  left:50%, width:50% + transform:translate(0,0) faz left:50% = 75vw = centro lente direita.
-// Tamanhos de texto/botões são ajustados via CSS (body.vr-mode rules), não via zoom.
+// Escala o overlay HTML para VR.
+// zoom:s encolhe texto/botões para caber na metade da tela.
+// marginLeft compensa o deslocamento que o zoom causa em left:50%.
+// Testes empíricos: 10%→direita, 5%→direita, 0%→esquerda.  7% é o ponto ideal.
 function _applyVrOverlayScale() {
-  // Nada a fazer no overlay — o CSS body.vr-mode já cuida de width:50% etc.
-  // Apenas sincroniza mirror sem zoom
+  const overlay = document.getElementById('overlay-layer');
+  if (!overlay) return;
+  const s = _vrScale;
+  overlay.style.zoom = s;
+  overlay.style.marginLeft = '7%';
+  if (_vrMirror) _vrMirror.style.zoom = s;
 }
 
 function _resetVrOverlayScale() {
-  // Nada a resetar — tudo via CSS classes
+  const overlay = document.getElementById('overlay-layer');
+  if (!overlay) return;
+  overlay.style.zoom = '';
+  overlay.style.marginLeft = '';
 }
 
 // ===== VR MIRROR — espelha overlay para o olho direito =====
