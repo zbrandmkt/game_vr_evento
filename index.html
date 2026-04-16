@@ -12,7 +12,7 @@
   <!-- Firebase SDK v12 (modular) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+    import { getDatabase, ref, push, get, remove } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
     const app = initializeApp({
       apiKey: "AIzaSyALkBD0Zd6uUDDX-mVm2mxI24eCEGBE6gs",
       authDomain: "presenca-game-stand.firebaseapp.com",
@@ -23,7 +23,7 @@
       appId: "1:397975465714:web:8d3c29cd70a7fa46c2aa6b"
     });
     const db = getDatabase(app);
-    window._fb = { db, ref, push };
+    window._fb = { db, ref, push, get, remove };
     console.log('[Firebase] VR game conectado.');
   </script>
   <style>
@@ -433,6 +433,55 @@
 
     /* vr-hud fica fora do overlay-layer (não é espelhado), então ocultamos — o game-hud já cobre tudo */
     #vr-hud { display: none !important; }
+
+    /* ===== FILA PENDENTE (Firebase) ===== */
+    #pending-panel {
+      display: none; width: 100%; max-width: 500px;
+      background: rgba(255,139,26,0.07); border: 1px solid rgba(255,139,26,0.25);
+      border-radius: 12px; padding: 14px; margin-top: 14px;
+    }
+    #pending-panel.open { display: block; }
+    .pending-title {
+      font-size: 13px; font-weight: 700; color: #FF8B1A;
+      letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase;
+    }
+    .pending-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.04); border-radius: 8px;
+      padding: 8px 10px; margin-bottom: 6px; gap: 8px;
+    }
+    .pending-item-info { font-size: 12px; color: #ddd; line-height: 1.5; flex: 1; }
+    .pending-item-info strong { color: #FF8B1A; font-size: 15px; }
+    .pending-item-info span  { color: #888; font-size: 11px; }
+    .pending-btn-claim {
+      background: #FF8B1A; border: none; border-radius: 8px;
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 6px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .pending-btn-remove {
+      background: rgba(255,255,255,0.08); border: 1px solid #444;
+      border-radius: 8px; color: #888; font-size: 11px;
+      padding: 6px 8px; cursor: pointer; flex-shrink: 0;
+    }
+    /* Formulário inline de registro dentro do item */
+    .pending-form { margin-top: 8px; display: none; }
+    .pending-form.open { display: block; }
+    .pending-form input {
+      width: 100%; padding: 7px 10px; margin-bottom: 6px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,139,26,0.3);
+      border-radius: 7px; color: #fff; font-size: 13px; font-family: 'Poppins', sans-serif;
+    }
+    .pending-form input::placeholder { color: #666; }
+    .pending-form-btns { display: flex; gap: 6px; }
+    .pending-form-save {
+      flex: 1; background: #FF8B1A; border: none; border-radius: 7px;
+      color: #fff; font-size: 12px; font-weight: 700; padding: 7px; cursor: pointer;
+    }
+    .pending-form-cancel {
+      background: rgba(255,255,255,0.07); border: 1px solid #444;
+      border-radius: 7px; color: #888; font-size: 12px;
+      padding: 7px 10px; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -556,7 +605,17 @@
         <div class="ranking-time">Tempo</div>
       </div>
     </div>
-    <button class="ranking-export" onclick="exportCSV()">Exportar CSV</button>
+    <div style="display:flex;gap:8px;margin-top:15px;flex-wrap:wrap;justify-content:center;">
+      <button class="ranking-export" onclick="exportCSV()">Exportar CSV</button>
+      <button class="ranking-export" id="btn-ver-fila" onclick="togglePendingPanel()" style="color:#FF8B1A;border-color:rgba(255,139,26,0.4);">📋 Ver Fila</button>
+    </div>
+
+    <!-- Painel da fila pendente do Firebase -->
+    <div id="pending-panel">
+      <div class="pending-title">🕐 Fila de Pontuações Pendentes</div>
+      <div id="pending-list"><div style="color:#666;font-size:12px;text-align:center;">Carregando...</div></div>
+    </div>
+
     <button class="ranking-close" onclick="closeRanking()">Fechar</button>
   </div>
 
@@ -2060,8 +2119,153 @@ function renderRankingTab() {
 }
 
 function closeRanking() {
+  // Fecha painel de fila ao fechar o ranking
+  const panel = $('pending-panel');
+  if (panel) panel.classList.remove('open');
   rankingScreen.classList.remove('active');
   mainMenu.classList.remove('hidden');
+}
+
+// ===== FILA PENDENTE DO FIREBASE =====
+function togglePendingPanel() {
+  const panel  = $('pending-panel');
+  const btn    = $('btn-ver-fila');
+  const isOpen = panel.classList.toggle('open');
+  btn.textContent = isOpen ? '📋 Fechar Fila' : '📋 Ver Fila';
+  if (isOpen) _loadPendingQueue();
+}
+
+function _loadPendingQueue() {
+  const list = $('pending-list');
+  list.innerHTML = '<div style="color:#888;font-size:12px;text-align:center;padding:8px;">Buscando no Firebase...</div>';
+
+  const fb = window._fb;
+  if (!fb) {
+    list.innerHTML = '<div style="color:#f44;font-size:12px;text-align:center;">Firebase não iniciado.</div>';
+    return;
+  }
+
+  fb.get(fb.ref(fb.db, 'pending'))
+    .then(snapshot => {
+      if (!snapshot.exists()) {
+        list.innerHTML = '<div style="color:#666;font-size:12px;text-align:center;padding:8px;">Fila vazia — nenhuma pontuação pendente.</div>';
+        return;
+      }
+      const items = [];
+      snapshot.forEach(child => {
+        items.push({ key: child.key, ...child.val() });
+      });
+      // Mais recentes primeiro
+      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+      _renderPendingItems(items);
+    })
+    .catch(err => {
+      list.innerHTML = `<div style="color:#f44;font-size:12px;text-align:center;padding:8px;">Erro ao buscar: ${err.message}</div>`;
+    });
+}
+
+function _renderPendingItems(items) {
+  const list = $('pending-list');
+  list.innerHTML = '';
+
+  if (!items.length) {
+    list.innerHTML = '<div style="color:#666;font-size:12px;text-align:center;padding:8px;">Fila vazia.</div>';
+    return;
+  }
+
+  items.forEach(item => {
+    const d    = item.date ? new Date(item.date) : null;
+    const hora = d ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '?';
+    const dia  = d ? d.toLocaleDateString('pt-BR') : '?';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'pending-item';
+    wrap.style.flexDirection = 'column';
+    wrap.style.alignItems = 'stretch';
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div class="pending-item-info">
+          <strong>${item.score ?? 0} pts</strong>
+          <br><span>${item.time ?? '?'} barreiras quebradas · ${dia} ${hora}</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="pending-btn-claim" onclick="_openPendingForm(this, '${item.key}', ${item.score ?? 0}, ${item.time ?? 0})">✓ Registrar</button>
+          <button class="pending-btn-remove" onclick="_removePendingItem(this, '${item.key}')" title="Descartar">✕</button>
+        </div>
+      </div>
+      <div class="pending-form" id="pf-${item.key}">
+        <input type="text"  id="pf-name-${item.key}"  placeholder="Nome do jogador" maxlength="60">
+        <input type="tel"   id="pf-phone-${item.key}" placeholder="Telefone (opcional)" maxlength="20">
+        <div class="pending-form-btns">
+          <button class="pending-form-save"   onclick="_savePendingEntry('${item.key}', ${item.score ?? 0}, ${item.time ?? 0})">💾 Salvar no Ranking</button>
+          <button class="pending-form-cancel" onclick="_closePendingForm('${item.key}')">Cancelar</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(wrap);
+  });
+}
+
+function _openPendingForm(btn, key) {
+  const form = $('pf-' + key);
+  if (!form) return;
+  form.classList.add('open');
+  const inp = $('pf-name-' + key);
+  if (inp) inp.focus();
+}
+
+function _closePendingForm(key) {
+  const form = $('pf-' + key);
+  if (form) form.classList.remove('open');
+}
+
+function _savePendingEntry(key, scoreVal, timeVal) {
+  const nameEl  = $('pf-name-'  + key);
+  const phoneEl = $('pf-phone-' + key);
+  const name    = nameEl  ? nameEl.value.trim()  : '';
+  const phone   = phoneEl ? phoneEl.value.trim() : '';
+
+  if (!name) {
+    if (nameEl) { nameEl.style.borderColor = '#ff4444'; nameEl.focus(); }
+    return;
+  }
+  if (nameEl) nameEl.style.borderColor = '';
+
+  // Salva no ranking local
+  saveRanking('geo', { name, phone, score: scoreVal, time: timeVal, date: new Date().toISOString() });
+  renderRankingTab();
+
+  // Remove do Firebase pending
+  const fb = window._fb;
+  if (fb) {
+    fb.remove(fb.ref(fb.db, 'pending/' + key))
+      .catch(e => console.warn('[Firebase] Erro ao remover pending:', e));
+  }
+
+  // Remove o item da lista visualmente
+  const form = $('pf-' + key);
+  if (form) form.closest('.pending-item') && form.closest('.pending-item').remove();
+
+  // Mostra feedback
+  const list = $('pending-list');
+  if (list && !list.querySelector('.pending-item')) {
+    list.innerHTML = '<div style="color:#4caf50;font-size:12px;text-align:center;padding:8px;">✓ Fila vazia.</div>';
+  }
+}
+
+function _removePendingItem(btn, key) {
+  if (!confirm('Descartar esta pontuação da fila?')) return;
+  const fb = window._fb;
+  if (fb) {
+    fb.remove(fb.ref(fb.db, 'pending/' + key))
+      .catch(e => console.warn('[Firebase] Erro ao remover:', e));
+  }
+  const item = btn.closest('.pending-item');
+  if (item) item.remove();
+  const list = $('pending-list');
+  if (list && !list.querySelector('.pending-item')) {
+    list.innerHTML = '<div style="color:#666;font-size:12px;text-align:center;padding:8px;">Fila vazia.</div>';
+  }
 }
 
 function exportCSV() {
