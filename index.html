@@ -2159,7 +2159,8 @@ function enterStereoVR() {
   const renderer = scene.renderer;
 
   // Fullscreen + landscape
-  try { screen.orientation.lock('landscape').catch(() => {}); } catch(e) {}
+  // landscape-secondary = topo do celular para a DIREITA (cabo áudio/USB à esquerda)
+  try { screen.orientation.lock('landscape-secondary').catch(() => {}); } catch(e) {}
   try {
     const el = document.documentElement;
     (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullscreen)?.call(el);
@@ -2180,9 +2181,6 @@ function enterStereoVR() {
   _stereoCamera = new THREE.StereoCamera();
   _stereoCamera.eyeSep = 0.064;
 
-  // Matriz de rotação 180° no eixo Z — usada para corrigir landscape-secondary
-  const _flipZ = new THREE.Matrix4().makeRotationZ(Math.PI);
-
   // Intercepta renderer.render — renderiza cada olho na sua metade da tela
   _origRender = renderer.render.bind(renderer);
   renderer.render = function(sceneObj, camera) {
@@ -2200,23 +2198,6 @@ function enterStereoVR() {
     const oy = Math.floor((fullH - sh) / 2); // margem vertical
     const w2 = Math.floor(sw / 2);
 
-    // Detecta landscape-secondary (celular com áudio/USB do lado oposto)
-    // angle 270 ou -90 = landscape invertido → imagem de ponta cabeça
-    const angle = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
-    const flipped = (angle === 270 || angle === -90);
-
-    // Se flipped: troca olhos (esquerdo↔direito) e rotaciona 180° no Z
-    let camL, camR;
-    if (flipped) {
-      camL = _stereoCamera.cameraR;
-      camR = _stereoCamera.cameraL;
-      camL.matrixWorldInverse.premultiply(_flipZ);
-      camR.matrixWorldInverse.premultiply(_flipZ);
-    } else {
-      camL = _stereoCamera.cameraL;
-      camR = _stereoCamera.cameraR;
-    }
-
     const prevAutoClear = renderer.autoClear;
     renderer.autoClear = false;
     renderer.setScissorTest(true);
@@ -2226,13 +2207,13 @@ function enterStereoVR() {
     renderer.setViewport(ox, oy, w2, sh);
     renderer.setScissor(ox, oy, w2, sh);
     renderer.clear();
-    _origRender(sceneObj, camL);
+    _origRender(sceneObj, _stereoCamera.cameraL);
 
     // Olho direito
     renderer.setViewport(ox + w2, oy, w2, sh);
     renderer.setScissor(ox + w2, oy, w2, sh);
     renderer.clear();
-    _origRender(sceneObj, camR);
+    _origRender(sceneObj, _stereoCamera.cameraR);
 
     renderer.setScissorTest(false);
     renderer.autoClear = prevAutoClear;
