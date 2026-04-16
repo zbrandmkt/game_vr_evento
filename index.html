@@ -537,7 +537,9 @@
     <div class="result-title" id="result-title">Parabéns!</div>
     <div class="result-score" id="result-score-value">0</div>
     <div class="result-detail" id="result-detail"></div>
-    <div style="margin-top: 12px;">
+    <!-- Contador de espera: evita reinício acidental no calor do jogo -->
+    <div id="result-wait" style="font-size:13px;color:rgba(255,255,255,0.45);margin-top:18px;letter-spacing:1px;min-height:22px;"></div>
+    <div id="result-btn-wrap" style="margin-top:12px;display:none;">
       <button class="result-btn" onclick="playAgain()">Jogar Novamente</button>
     </div>
   </div>
@@ -1201,8 +1203,8 @@ let _gamepadPrev = {};
 function _gamepadAction() {
   // Golpe durante o jogo
   if (gameActive) { handleTouchHit(); return; }
-  // Jogar novamente na tela de resultado
-  if (resultScreen && resultScreen.classList.contains('active')) { playAgain(); return; }
+  // Jogar novamente na tela de resultado (só após o cooldown de 10s)
+  if (resultScreen && resultScreen.classList.contains('active') && _resultReady) { playAgain(); return; }
   // Iniciar partida no menu principal (se já passou do splash)
   if (mainMenu && !mainMenu.classList.contains('hidden')) { startGame(); return; }
 }
@@ -1925,6 +1927,9 @@ function updateGeoLighting() {
 }
 
 // ===== END GAME =====
+let _resultReady = false;   // bloqueia playAgain() nos primeiros 10s
+let _resultCountdownRAF = null;
+
 function endGame() {
   stopGame();
   hideAllScreens();
@@ -1935,11 +1940,37 @@ function endGame() {
   pushScoreToPending('geo', score, geoWordsRevealed);
   resultScreen.classList.add('active');
 
+  // Oculta botão e inicia contagem regressiva de 10s
+  _resultReady = false;
+  const btnWrap = $('result-btn-wrap');
+  const waitEl  = $('result-wait');
+  if (btnWrap) btnWrap.style.display = 'none';
+
+  const WAIT_S = 10;
+  let remaining = WAIT_S;
+  if (waitEl) waitEl.textContent = `Aguarde ${remaining}s...`;
+
+  function tick() {
+    remaining--;
+    if (remaining <= 0) {
+      if (waitEl) waitEl.textContent = '';
+      if (btnWrap) btnWrap.style.display = 'block';
+      _resultReady = true;
+      _resultCountdownRAF = null;
+    } else {
+      if (waitEl) waitEl.textContent = `Aguarde ${remaining}s...`;
+      _resultCountdownRAF = setTimeout(tick, 1000);
+    }
+  }
+  _resultCountdownRAF = setTimeout(tick, 1000);
+
   // Narração 3 — só áudio, sem legendas
   _playAudio(_aud3, null);
 }
 
 function playAgain() {
+  if (!_resultReady) return;            // ignora se ainda dentro dos 10s de cooldown
+  if (_resultCountdownRAF) { clearTimeout(_resultCountdownRAF); _resultCountdownRAF = null; }
   hideAllScreens();
   beginPhase1();
 }
