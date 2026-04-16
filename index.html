@@ -782,7 +782,7 @@ let gazeRingAnimFrame = null;
 
 // Angle of mine entrance from player starting direction (degrees, 0=forward, 90=right, -90=left)
 // Calibrated by user: sky Y=160, cave entrance at 220°
-const MINE_ENTRANCE_ANGLE = 210;
+const MINE_ENTRANCE_ANGLE = 190;
 const MINE_ENTRANCE_HEIGHT = 1.5;
 const MINE_ENTRANCE_DIST   = 5.0;
 const MINE_GAZE_DWELL_MS   = 2000; // 2 seconds
@@ -2083,14 +2083,13 @@ function _dbgGyro(a, b, g) {
 
 // Escala VR fixa em 85% — valores hardcoded para Shinecon SC-G04E.
 // zoom:0.85 encolhe texto/botões para caber na metade da tela.
-// marginLeft:7.5% = (1-0.85)/2*100 = alinha left:50% ao centro exato do viewport 3D.
-// Olho esquerdo: 7.5% + 25vw*0.85 = 28.75vw (centro 3D esquerdo)
-// Olho direito:  50%  + 25vw*0.85 = 71.25vw (centro 3D direito) — simétrico!
+// marginLeft calibrado empiricamente para Shinecon SC-G04E a 85%:
+// 7.5% → levemente esquerda, 10% → levemente direita. 8.5% = ponto ideal.
 function _applyVrOverlayScale() {
   const overlay = document.getElementById('overlay-layer');
   if (!overlay) return;
   overlay.style.zoom = '0.85';
-  overlay.style.marginLeft = '7.5%';
+  overlay.style.marginLeft = '8.5%';
   if (_vrMirror) _vrMirror.style.zoom = '0.85';
 }
 
