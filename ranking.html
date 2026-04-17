@@ -532,7 +532,7 @@
       opacity: 0.7;
     }
 
-    /* ===== BANNER FINAL ===== */
+    /* ===== BANNER FINAL (mobile) ===== */
     .banner-final {
       max-width: 720px;
       margin: 0 auto 8px;
@@ -548,6 +548,33 @@
     }
     @media (max-width: 480px) {
       .banner-final img { width: 70%; }
+    }
+
+    /* ===== BANNER FIXO DIREITO (desktop only) ===== */
+    #banner-fixed {
+      display: none;
+    }
+    @media (min-width: 768px) {
+      .banner-final { display: none; } /* esconde o banner centralizado no desktop */
+
+      #banner-fixed {
+        display: block;
+        position: fixed;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        width: 280px;
+        pointer-events: none;
+      }
+      #banner-fixed img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+    }
+    @media (min-width: 1200px) {
+      #banner-fixed { width: 340px; }
     }
 
     /* ===== LOGIN MODAL ===== */
@@ -724,6 +751,12 @@
 </main>
 
 <canvas id="particles-canvas"></canvas>
+
+<!-- Banner fixo lado direito — visível apenas no desktop -->
+<div id="banner-fixed">
+  <img src="assets/futurodoconsignadopresenca.png" alt="O futuro do consignado é com Presença">
+</div>
+
 <div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
 
 <!-- Banner final -->
