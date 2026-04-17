@@ -1010,6 +1010,7 @@ function startGame() {
 function _doStartGame() {
   if (_gameStarted) return;     // evita duplo disparo de clique/toque
   _gameStarted = true;
+  requestWakeLock();            // mantém tela acesa durante toda a jornada do jogo
   mainMenu.classList.add('hidden');
   vrEnterBtn.style.display = 'flex';
   beginPhase1();
@@ -1018,6 +1019,7 @@ function _doStartGame() {
 function backToMenu() {
   _gameStarted = false;
   _gameEnded   = false;
+  releaseWakeLock();            // libera a tela ao voltar para o menu
   stopGame();
   hideAllScreens();
   mainMenu.classList.remove('hidden');
@@ -1139,7 +1141,8 @@ function releaseWakeLock() {
 // re-adquire se o jogo ainda estiver ativo (ou em VR).
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
-  if (gameActive || document.body.classList.contains('vr-mode')) {
+  // Re-adquire sempre que o jogador estiver em qualquer fase do jogo (fase 1, 2 ou resultado)
+  if (_gameStarted || gameActive || document.body.classList.contains('vr-mode')) {
     requestWakeLock();
   }
 });
