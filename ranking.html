@@ -46,8 +46,8 @@
 
     /* ===== HEADER ===== */
     .header {
-      background: var(--white);
-      border-bottom: 1px solid var(--gray-100);
+      background: transparent;
+      border-bottom: none;
       padding: 16px 24px;
       display: flex;
       align-items: center;
@@ -55,14 +55,13 @@
       position: sticky;
       top: 0;
       z-index: 200;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
     .header-logo { height: 36px; width: auto; object-fit: contain; }
     .header-right { display: flex; align-items: center; gap: 12px; }
-    .header-event { font-size: 12px; color: var(--gray-600); display: none; }
+    .header-event { font-size: 12px; color: rgba(255,255,255,0.8); display: none; }
     @media (min-width: 480px) { .header-event { display: block; } }
     .header-badge {
-      background: var(--orange);
+      background: rgba(255,255,255,0.2);
       color: white;
       font-size: 10px;
       font-weight: 700;
@@ -70,6 +69,7 @@
       text-transform: uppercase;
       padding: 5px 12px;
       border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.35);
     }
 
     /* ===== PROMOTER BAR ===== */
@@ -601,7 +601,7 @@
 
 <!-- Header -->
 <header class="header">
-  <img class="header-logo" src="assets/logo-laranja.png" alt="Presença Bank">
+  <img class="header-logo" src="assets/logo-branco.png" alt="Presença Bank">
   <div class="header-right">
     <span class="header-event">Workshop Corban360 · Abr 2026</span>
     <span class="header-badge">CLT é Ouro</span>
