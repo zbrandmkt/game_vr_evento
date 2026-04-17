@@ -645,7 +645,9 @@
 
 <!-- New Score Modal -->
 <div id="score-modal">
-  <div class="modal-card">
+  <div class="modal-card" style="position:relative;">
+    <button onclick="dismissModal()" title="Fechar e ver depois na fila"
+      style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:20px;color:#B0AFA8;line-height:1;padding:4px;" aria-label="Fechar">✕</button>
     <div class="modal-badge">Nova pontuação!</div>
     <div class="modal-queue" id="modal-queue"></div>
     <div class="modal-score-wrap">
@@ -905,6 +907,14 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 });
 
 // ===== CONFIRMAR / PULAR SCORE =====
+window.dismissModal = function() {
+  // Fecha o modal sem processar — item permanece na fila para ser salvo depois pelo "Ver Fila"
+  document.getElementById('score-modal').classList.remove('active');
+  modalOpen = false;
+  // Notifica o promotor que há itens pendentes na fila
+  updateQueueBadge();
+};
+
 window.confirmScore = async function() {
   const name = document.getElementById('inp-name').value.trim();
   if (!name) { document.getElementById('inp-name').focus(); return; }
