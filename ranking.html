@@ -770,65 +770,60 @@
   </div>
 </div>
 
-<!-- Particles -->
+<!-- Dotted surface (grid ondulado com ondas de seno) -->
 <script>
 (function(){
   const canvas = document.getElementById('particles-canvas');
-  const ctx = canvas.getContext('2d');
-  const ORANGE = '#FFFFFF';
-  let W, H, pts = [];
+  const ctx    = canvas.getContext('2d');
+
+  let W, H, tick = 0;
+
+  // Número de colunas e linhas do grid — denso mas leve
+  const COLS = 38, ROWS = 22;
+  const DOT_R = 1.4;         // raio de cada bolinha
+  const AMP   = 10;          // amplitude da onda (px)
+  const SPEED = 0.018;       // velocidade da onda
 
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
   }
 
-  function rand(min, max) { return Math.random() * (max - min) + min; }
-
-  function spawn() {
-    // All particles travel diagonally bottom-left → top-right (like in the stand image)
-    return {
-      x: rand(-W * 0.2, W * 1.1),
-      y: rand(H * 0.2, H * 1.4),
-      r: rand(1.5, 4.5),
-      opacity: rand(0.15, 0.55),
-      speed: rand(0.18, 0.55),
-      angle: rand(-52, -40) * Math.PI / 180  // diagonal up-right
-    };
-  }
-
-  function init() {
-    pts = [];
-    for (let i = 0; i < 55; i++) {
-      const p = spawn();
-      // scatter them across the canvas at start
-      p.x += rand(0, W);
-      p.y -= rand(0, H);
-      pts.push(p);
-    }
-  }
-
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    pts.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = ORANGE;
-      ctx.globalAlpha = p.opacity;
-      ctx.fill();
 
-      p.x += Math.cos(p.angle) * p.speed;
-      p.y += Math.sin(p.angle) * p.speed;
+    const spacingX = W / (COLS + 1);
+    const spacingY = H / (ROWS + 1);
 
-      // reset when fully off screen top-right
-      if (p.x > W + 20 || p.y < -20) Object.assign(p, spawn());
-    });
-    ctx.globalAlpha = 1;
+    for (let row = 0; row <= ROWS; row++) {
+      for (let col = 0; col <= COLS; col++) {
+        const baseX = (col + 1) * spacingX;
+        const baseY = (row + 1) * spacingY;
+
+        // Ondas sobrepostas — igual ao componente original
+        const wave = Math.sin((col + tick) * 0.35) * AMP
+                   + Math.sin((row + tick) * 0.55) * AMP;
+
+        const x = baseX;
+        const y = baseY + wave;
+
+        // Opacidade varia sutilmente com a onda para dar profundidade
+        const alpha = 0.18 + (wave + AMP * 2) / (AMP * 4) * 0.25;
+
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_R, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.fill();
+      }
+    }
+
+    tick += SPEED;
     requestAnimationFrame(draw);
   }
 
-  window.addEventListener('resize', () => { resize(); init(); });
-  resize(); init(); draw();
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
 })();
 </script>
 
