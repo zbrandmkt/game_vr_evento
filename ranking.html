@@ -750,7 +750,6 @@
 </main>
 
 <canvas id="particles-canvas"></canvas>
-<svg id="bg-paths-svg" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></svg>
 
 <!-- Banner fixo lado direito — visível apenas no desktop -->
 <div id="banner-fixed">
@@ -770,58 +769,6 @@
     Desenvolvido por <img src="assets/logo-laranja-zbrand.png" alt="ZBrand">
   </div>
 </div>
-
-<!-- Background paths (flowing diagonal lines) -->
-<script>
-(function(){
-  const svg = document.getElementById('bg-paths-svg');
-  const NS  = 'http://www.w3.org/2000/svg';
-
-  // Inject keyframes once
-  const s = document.createElement('style');
-  s.textContent = `
-    @keyframes bgPath {
-      0%   { stroke-dashoffset: 5000; opacity: 0.2; }
-      50%  { opacity: 0.55; }
-      100% { stroke-dashoffset: 0;    opacity: 0.2; }
-    }`;
-  document.head.appendChild(s);
-
-  function build() {
-    svg.innerHTML = '';
-    const W = window.innerWidth, H = window.innerHeight;
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-
-    // Two mirrored sets (pos = 1 left→right, pos = -1 right→left)
-    for (const pos of [1, -1]) {
-      for (let i = 0; i < 36; i++) {
-        // Scale from original 696×316 viewBox
-        const sx = W / 696, sy = H / 316;
-        const x0 = (-380 + i * 5 * pos) * sx;
-        const y0 = (-189 + i * 5)       * sy;
-        const x1 = ( 196 + i * 5)       * sx;
-        const y1 = ( -23 + i * 5)       * sy;
-        const x2 = ( 476 + i * 5 * pos) * sx;
-        const y2 = ( 166 + i * 5)       * sy;
-
-        const p = document.createElementNS(NS, 'path');
-        p.setAttribute('d', `M ${x0} ${y0} C ${x0} ${y0} ${x1} ${y1} ${x2} ${y2}`);
-        p.setAttribute('fill', 'none');
-        p.setAttribute('stroke', `rgba(255,255,255,${(0.06 + i * 0.014).toFixed(3)})`);
-        p.setAttribute('stroke-width', (0.4 + i * 0.035).toFixed(2));
-        p.style.strokeDasharray = '5000';
-        const dur   = (22 + Math.random() * 12).toFixed(1);
-        const delay = (-Math.random() * 22).toFixed(1);
-        p.style.animation = `bgPath ${dur}s ${delay}s linear infinite`;
-        svg.appendChild(p);
-      }
-    }
-  }
-
-  build();
-  window.addEventListener('resize', build);
-})();
-</script>
 
 <!-- Particles -->
 <script>
