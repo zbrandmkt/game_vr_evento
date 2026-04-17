@@ -256,35 +256,37 @@
     #podium {
       display: none;
       grid-template-columns: 1fr 1.1fr 1fr;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 24px;
       align-items: flex-end;
+      overflow: hidden;
     }
     #podium.visible { display: grid; }
     .podium-card {
       background: var(--white);
       border: 1px solid var(--gray-100);
       border-radius: 16px;
-      padding: 20px 12px;
+      padding: 16px 8px;
       text-align: center;
+      min-width: 0;
     }
     .podium-card.p1 {
       border-color: rgba(201,150,42,0.4);
       box-shadow: 0 6px 24px rgba(201,150,42,0.12);
-      padding: 24px 12px;
+      padding: 20px 8px;
     }
-    .podium-medal { font-size: 28px; margin-bottom: 6px; }
+    .podium-medal { font-size: 26px; margin-bottom: 4px; }
     .podium-rank {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
       color: var(--gray-300);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .p1 .podium-rank { color: var(--gold); }
     .podium-name {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--dark);
       white-space: nowrap;
@@ -294,11 +296,11 @@
     }
     .podium-pts {
       font-family: 'Nunito', sans-serif;
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 700;
       color: var(--orange);
     }
-    .p1 .podium-pts { color: var(--gold); font-size: 30px; }
+    .p1 .podium-pts { color: var(--gold); font-size: 26px; }
 
     /* ===== TABLE ===== */
     .ranking-card {
@@ -538,11 +540,14 @@
       text-align: center;
     }
     .banner-final img {
-      width: 100%;
-      max-width: 420px;
+      width: 55%;
+      max-width: 320px;
       height: auto;
       display: block;
       margin: 0 auto;
+    }
+    @media (max-width: 480px) {
+      .banner-final img { width: 70%; }
     }
 
     /* ===== LOGIN MODAL ===== */
