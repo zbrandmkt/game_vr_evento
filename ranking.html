@@ -24,7 +24,8 @@
 
     body {
       font-family: 'IBM Plex Sans', sans-serif;
-      background: var(--cream);
+      background: linear-gradient(160deg, #FF8B1A 0%, #E05A00 55%, #C44200 100%);
+      background-attachment: fixed;
       color: var(--dark);
       min-height: 100vh;
     }
@@ -36,7 +37,7 @@
       width: 100%; height: 100%;
       pointer-events: none;
       z-index: 0;
-      opacity: 0.55;
+      opacity: 0.45;
     }
     .header, .main, #promoter-bar, .promoter-tag, .footer {
       position: relative;
@@ -233,7 +234,7 @@
       font-family: 'Nunito', sans-serif;
       font-size: 48px;
       font-weight: 900;
-      color: var(--dark);
+      color: #FFFFFF;
       letter-spacing: -1px;
       line-height: 1;
     }
@@ -241,13 +242,13 @@
       font-family: 'Nunito', sans-serif;
       font-size: 15px;
       font-weight: 700;
-      color: var(--orange);
+      color: rgba(255,255,255,0.85);
       letter-spacing: 0.3px;
       margin-top: 6px;
     }
     .section-count {
       font-size: 12px;
-      color: var(--gray-600);
+      color: rgba(255,255,255,0.7);
       margin-top: 10px;
     }
 
@@ -508,7 +509,7 @@
       text-align: center;
       padding: 16px 16px 20px;
       font-size: 11px;
-      color: var(--orange);
+      color: rgba(255,255,255,0.75);
       letter-spacing: 0.5px;
     }
     .footer-dev {
@@ -518,13 +519,31 @@
       gap: 5px;
       margin-top: 6px;
       font-size: 10px;
-      color: var(--orange);
+      color: rgba(255,255,255,0.6);
       letter-spacing: 0.3px;
     }
     .footer-dev img {
       height: 14px;
       width: auto;
       vertical-align: middle;
+      filter: brightness(0) invert(1);
+      opacity: 0.7;
+    }
+
+    /* ===== BANNER FINAL ===== */
+    .banner-final {
+      max-width: 720px;
+      margin: 0 auto 8px;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .banner-final img {
+      width: 100%;
+      max-width: 680px;
+      height: auto;
+      border-radius: 20px;
+      display: block;
+      margin: 0 auto;
     }
 
     /* ===== LOGIN MODAL ===== */
@@ -702,6 +721,12 @@
 
 <canvas id="particles-canvas"></canvas>
 <div class="promoter-tag" id="promoter-tag">Modo Promotor</div>
+
+<!-- Banner final -->
+<div class="banner-final">
+  <img src="assets/futurodoconsignadopresenca.png" alt="O futuro do consignado é com Presença">
+</div>
+
 <div class="footer">
   Presença Bank &bull; Workshop Corban360 &bull; São Paulo Expo
   <div class="footer-dev">
@@ -714,7 +739,7 @@
 (function(){
   const canvas = document.getElementById('particles-canvas');
   const ctx = canvas.getContext('2d');
-  const ORANGE = '#FF8B1A';
+  const ORANGE = '#FFFFFF';
   let W, H, pts = [];
 
   function resize() {
