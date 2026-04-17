@@ -664,7 +664,7 @@
       <input class="form-input" id="inp-wa" type="tel" placeholder="(11) 99999-9999" autocomplete="off">
     </div>
     <button class="btn-primary" onclick="confirmScore()">Salvar no Ranking</button>
-    <button class="btn-secondary" onclick="skipScore()">Pular cadastro</button>
+    <button class="btn-secondary" onclick="skipScore()">Pular — ver depois na fila</button>
   </div>
 </div>
 
@@ -921,7 +921,23 @@ window.confirmScore = async function() {
   await saveEntry(name, document.getElementById('inp-wa').value.trim());
 };
 
-window.skipScore = async function() { await saveEntry('Anônimo', ''); };
+window.skipScore = function() {
+  if (!queue.length) return;
+
+  // Move o item atual para o FINAL da fila — não salva no ranking, não remove do Firebase
+  const item = queue.shift();
+  queue.push(item);
+
+  document.getElementById('score-modal').classList.remove('active');
+  modalOpen = false;
+  updateQueueBadge();
+
+  // Se ainda há outros itens além do que foi pulado, abre o próximo
+  if (queue.length > 1) {
+    setTimeout(processNext, 600);
+  }
+  // Se só restou o item pulado, fica disponível no "Ver Fila" sem reabrir automaticamente
+};
 
 async function saveEntry(name, wa) {
   if (!queue.length) { console.warn('[Promotor] Fila vazia.'); return; }
