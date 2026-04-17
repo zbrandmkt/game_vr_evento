@@ -2532,6 +2532,8 @@ function _vrUpdateHUD() {
 
 // Reinicia o jogo sem sair do modo VR
 function vrRestart() {
+  _gameStarted = false;   // libera o guard de _doStartGame para o próximo "Iniciar Partida"
+  _gameEnded   = false;
   stopGame();
   _stopAudio(_aud1);
   _stopAudio(_aud2);
